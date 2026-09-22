@@ -29,7 +29,11 @@ button { cursor: pointer; }
 .promo-panel {
   position: relative;
   border-radius: 22px 0 0 22px;
-  background: #0d3e36 url('/images/login-warehouse-bg.svg') center center / cover no-repeat;
+  background-color: #0d3e36;
+  background-image: url('/images/Girder-login-background.png'), url('/images/login-warehouse-bg.svg');
+  background-position: center, center;
+  background-size: cover, cover;
+  background-repeat: no-repeat, no-repeat;
   color: #fff;
 }
 
