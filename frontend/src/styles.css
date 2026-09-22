@@ -7,24 +7,27 @@
 }
 
 * { box-sizing: border-box; }
-html, body, #root {
+html,
+body,
+#root {
   width: 100%;
   height: 100%;
+  min-width: 320px;
   min-height: 100%;
   margin: 0;
   padding: 0;
   overflow: hidden;
 }
-body { min-width: 320px; background: #eef1f1; }
+body { background: #eef1f1; }
 button, input { font: inherit; }
 button { cursor: pointer; }
 
 .login-page {
   width: 100vw;
   height: 100vh;
-  min-height: 100vh;
+  min-height: 0;
   overflow: hidden;
-  padding: 24px 28px;
+  padding: clamp(10px, 2.2vh, 24px) clamp(10px, 2.2vw, 28px);
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   background: #eef1f1;
@@ -32,7 +35,7 @@ button { cursor: pointer; }
 
 .promo-panel,
 .form-panel {
-  height: calc(100vh - 48px);
+  height: 100%;
   min-height: 0;
   overflow: hidden;
 }
@@ -57,25 +60,33 @@ button { cursor: pointer; }
 .promo-content {
   position: relative;
   z-index: 1;
-  min-height: 100%;
-  padding: 70px 78px 66px;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: clamp(28px, 6vh, 70px) clamp(24px, 5vw, 78px) clamp(24px, 5vh, 66px);
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .brand {
   display: inline-flex;
   align-items: center;
-  gap: 13px;
+  gap: clamp(8px, 0.8vw, 13px);
+  max-width: 100%;
   color: #fff;
-  font-size: clamp(42px, 3.2vw, 58px);
+  font-size: clamp(28px, 3.2vw, 58px);
   line-height: 1;
   font-weight: 700;
   letter-spacing: -2.5px;
   width: max-content;
 }
 
-.brand-mark { width: 48px; height: 48px; }
+.brand-mark {
+  width: clamp(30px, 3vw, 48px);
+  height: clamp(30px, 3vw, 48px);
+  flex: 0 0 auto;
+}
 
 .eyebrow {
   margin: 0;
@@ -89,28 +100,31 @@ button { cursor: pointer; }
 .promo-eyebrow { margin-top: 24px; color: rgba(255,255,255,.92); }
 .promo-eyebrow span { margin: 0 7px; opacity: .7; }
 
-.promo-copy { margin-top: clamp(92px, 11vh, 132px); }
+.promo-copy {
+  margin-top: clamp(34px, 10vh, 132px);
+  min-width: 0;
+}
 .promo-copy h1 {
   margin: 0;
-  max-width: 540px;
-  font-size: clamp(46px, 4.4vw, 72px);
+  max-width: min(100%, 540px);
+  font-size: clamp(32px, 4.4vw, 72px);
   line-height: .99;
   letter-spacing: -2.8px;
   font-weight: 650;
 }
 
 .promo-copy > p {
-  margin: 27px 0 0;
-  max-width: 620px;
-  font-size: clamp(18px, 1.35vw, 23px);
+  margin: clamp(14px, 2.5vh, 27px) 0 0;
+  max-width: min(100%, 620px);
+  font-size: clamp(14px, 1.35vw, 23px);
   line-height: 1.42;
   color: rgba(255,255,255,.96);
 }
 
 .feature-list {
   display: grid;
-  gap: 13px;
-  margin: 29px 0 0;
+  gap: clamp(7px, 1.3vh, 13px);
+  margin: clamp(14px, 3vh, 29px) 0 0;
   padding: 0;
   list-style: none;
 }
@@ -118,16 +132,17 @@ button { cursor: pointer; }
 .feature-list li {
   display: flex;
   align-items: center;
-  gap: 18px;
-  font-size: 18px;
+  min-width: 0;
+  gap: clamp(8px, 1.2vw, 18px);
+  font-size: clamp(12px, 1.2vw, 18px);
   line-height: 1.25;
   font-weight: 500;
 }
 
 .feature-icon {
-  width: 44px;
-  height: 44px;
-  flex: 0 0 44px;
+  width: clamp(30px, 3vw, 44px);
+  height: clamp(30px, 3vw, 44px);
+  flex: 0 0 clamp(30px, 3vw, 44px);
   display: grid;
   place-items: center;
   border-radius: 12px;
@@ -147,7 +162,8 @@ button { cursor: pointer; }
   background: #fff;
   display: flex;
   flex-direction: column;
-  padding: 29px 56px 32px;
+  min-width: 0;
+  padding: clamp(18px, 3vh, 29px) clamp(20px, 4vw, 56px) clamp(18px, 3vh, 32px);
 }
 
 .top-action {
@@ -172,19 +188,25 @@ button { cursor: pointer; }
 
 .form-wrap {
   width: min(100%, 550px);
-  margin: clamp(104px, 15vh, 150px) auto 0;
+  min-width: 0;
+  margin: clamp(34px, 12vh, 150px) auto 0;
 }
 
 .form-wrap h2 {
-  margin: 17px 0 8px;
+  margin: clamp(10px, 2vh, 17px) 0 8px;
   color: #111827;
-  font-size: clamp(39px, 3.5vw, 54px);
+  font-size: clamp(30px, 3.5vw, 54px);
   line-height: 1.04;
   letter-spacing: -2px;
   font-weight: 650;
 }
 
-.subtitle { margin: 0 0 36px; color: #526176; font-size: 19px; line-height: 1.45; }
+.subtitle {
+  margin: 0 0 clamp(18px, 3vh, 36px);
+  color: #526176;
+  font-size: clamp(14px, 1.35vw, 19px);
+  line-height: 1.4;
+}
 
 form label { display: block; margin-bottom: 10px; font-size: 16px; font-weight: 500; color: #111827; }
 .input-wrap { position: relative; margin-bottom: 23px; }
@@ -284,75 +306,180 @@ form label { display: block; margin-bottom: 10px; font-size: 16px; font-weight: 
 .legal-row a:hover { text-decoration: underline; }
 
 @media (max-width: 1150px) {
-  .login-page { padding: 18px; }
-  .promo-content { padding: 54px 52px; }
-  .form-panel { padding-inline: 42px; }
-  .promo-copy { margin-top: 86px; }
-  .promo-copy h1 { font-size: clamp(42px, 4.8vw, 58px); }
+  .login-page { padding: 14px; }
+  .promo-content { padding-inline: clamp(22px, 4vw, 52px); }
+  .form-panel { padding-inline: clamp(22px, 3.5vw, 42px); }
+  .promo-copy { margin-top: clamp(28px, 7vh, 86px); }
+  .form-wrap { margin-top: clamp(28px, 9vh, 82px); }
 }
 
 @media (max-width: 900px) {
-  .login-page { grid-template-columns: 42% 58%; }
-  .promo-content { padding: 48px 34px; }
-  .brand { font-size: 40px; }
-  .promo-eyebrow { font-size: 10px; letter-spacing: 1.4px; }
-  .promo-copy { margin-top: 76px; }
-  .promo-copy h1 { font-size: 42px; letter-spacing: -1.8px; }
-  .promo-copy > p { font-size: 16px; }
-  .feature-list li { font-size: 15px; gap: 11px; }
-  .feature-icon { width: 36px; height: 36px; flex-basis: 36px; }
-  .feature-icon svg { width: 18px; height: 18px; }
-  .form-panel { padding-inline: 34px; }
-  .top-action { font-size: 14px; gap: 12px; }
-  .contact-button { padding: 10px 15px; }
-  .form-wrap { margin-top: 82px; }
-  .form-wrap h2 { font-size: 40px; }
-  .subtitle { font-size: 16px; }
+  .login-page { grid-template-columns: 44% 56%; padding: 10px; }
+  .promo-content { padding: clamp(24px, 4vh, 48px) clamp(20px, 3vw, 34px); }
+  .brand { font-size: clamp(26px, 4vw, 40px); }
+  .promo-eyebrow { font-size: clamp(8px, 1.2vw, 10px); letter-spacing: 1.4px; }
+  .promo-copy { margin-top: clamp(24px, 6vh, 76px); }
+  .promo-copy h1 { font-size: clamp(28px, 4.8vw, 42px); letter-spacing: -1.8px; }
+  .promo-copy > p { font-size: clamp(13px, 1.7vw, 16px); }
+  .feature-list li { font-size: clamp(11px, 1.5vw, 15px); }
+  .form-panel { padding-inline: clamp(20px, 3vw, 34px); }
+  .top-action { font-size: 13px; }
+  .form-wrap { margin-top: clamp(24px, 7vh, 62px); }
+  .form-wrap h2 { font-size: clamp(30px, 4.2vw, 40px); }
 }
 
 @media (max-width: 700px) {
-  .login-page { display: flex; flex-direction: column; padding: 0; background: #fff; }
-  .promo-panel, .form-panel { min-height: 0; border-radius: 0; }
-  .promo-panel { height: 34%; flex: 0 0 34%; background-position: center; }
-  .promo-overlay { background: linear-gradient(180deg, rgba(7,45,39,.65), rgba(7,45,39,.9)); }
-  .promo-content { height: 100%; min-height: 0; padding: 24px 24px 20px; }
-  .brand { font-size: 35px; letter-spacing: -1.6px; }
-  .brand-mark { width: 38px; height: 38px; }
-  .promo-eyebrow { margin-top: 14px; font-size: 8px; letter-spacing: 1.1px; }
-  .promo-copy { margin-top: 31px; }
-  .promo-copy h1 { max-width: 430px; font-size: 33px; line-height: 1.02; letter-spacing: -1.4px; }
+  .login-page {
+    display: flex;
+    flex-direction: column;
+    width: 100vw;
+    height: 100vh;
+    padding: 0;
+  }
+
+  .promo-panel,
+  .form-panel {
+    width: 100%;
+    min-width: 0;
+    border-radius: 0;
+  }
+
+  .promo-panel {
+    height: 34%;
+    flex: 0 0 34%;
+  }
+
+  .promo-content {
+    height: 100%;
+    min-height: 0;
+    padding: clamp(16px, 4vw, 24px);
+  }
+
+  .brand { font-size: clamp(27px, 8vw, 35px); }
+  .brand-mark { width: clamp(30px, 9vw, 38px); height: clamp(30px, 9vw, 38px); }
+  .promo-eyebrow { margin-top: 10px; font-size: clamp(7px, 2vw, 9px); }
+  .promo-copy { margin-top: clamp(18px, 5vh, 31px); }
+  .promo-copy h1 { font-size: clamp(24px, 8vw, 33px); }
   .promo-copy > p { display: none; }
-  .feature-list { grid-template-columns: 1fr 1fr; gap: 8px 14px; margin-top: 18px; }
-  .feature-list li { font-size: 12px; gap: 7px; }
-  .feature-icon { width: 28px; height: 28px; flex-basis: 28px; border-radius: 8px; }
+
+  .feature-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px 10px;
+    margin-top: 12px;
+  }
+
+  .feature-list li {
+    font-size: clamp(10px, 2.8vw, 12px);
+    gap: 6px;
+  }
+
+  .feature-icon {
+    width: clamp(24px, 7vw, 30px);
+    height: clamp(24px, 7vw, 30px);
+    flex-basis: clamp(24px, 7vw, 30px);
+  }
+
   .feature-icon svg { width: 14px; height: 14px; }
   .feature-list li:last-child { grid-column: 1 / -1; }
   .promo-footer { display: none; }
 
-  .form-panel { height: 66%; flex: 0 0 66%; padding: 20px 24px 20px; }
-  .top-action { justify-content: space-between; font-size: 14px; }
-  .contact-button { padding: 9px 13px; }
-  .form-wrap { width: 100%; margin-top: 34px; }
-  .form-wrap h2 { font-size: 34px; letter-spacing: -1.4px; }
-  .subtitle { margin-bottom: 30px; font-size: 16px; }
-  .input-wrap input { height: 54px; }
-  .primary-button, .google-button { height: 56px; }
-  .legal-row { margin-top: auto; padding-top: 14px; font-size: 12px; }
+  .form-panel {
+    height: 66%;
+    flex: 0 0 66%;
+    padding: clamp(14px, 4vw, 24px);
+  }
+
+  .top-action { justify-content: space-between; font-size: clamp(11px, 3.2vw, 14px); }
+  .contact-button { padding: 8px 12px; }
+  .form-wrap {
+    width: 100%;
+    margin-top: clamp(16px, 5vh, 34px);
+  }
+
+  .form-wrap h2 { font-size: clamp(27px, 8vw, 34px); }
+  .subtitle { margin-bottom: 20px; font-size: clamp(13px, 3.8vw, 16px); }
+  .input-wrap { margin-bottom: 16px; }
+  .input-wrap input { height: clamp(48px, 14vw, 54px); }
+  .primary-button,
+  .google-button { height: clamp(48px, 14vw, 56px); }
+  .or-divider { margin: 18px 0; }
+  .legal-row {
+    margin-top: auto;
+    padding-top: 10px;
+    font-size: clamp(10px, 2.8vw, 12px);
+  }
 }
 
 @media (max-width: 420px) {
   .promo-panel { height: 31%; flex-basis: 31%; }
-  .promo-content { padding: 20px; }
   .form-panel { height: 69%; flex-basis: 69%; }
-  .brand { font-size: 32px; }
-  .brand-mark { width: 35px; height: 35px; }
-  .promo-copy h1 { font-size: 30px; }
+  .promo-content { padding: 16px; }
+  .brand { font-size: 29px; }
+  .brand-mark { width: 32px; height: 32px; }
+  .promo-copy h1 { font-size: 26px; }
   .feature-list { grid-template-columns: 1fr; }
   .feature-list li:last-child { grid-column: auto; }
-  .form-panel { padding-inline: 20px; }
-  .form-wrap { margin-top: 25px; }
-  .form-wrap h2 { font-size: 31px; }
+  .form-panel { padding: 14px 16px; }
+  .form-wrap { margin-top: 16px; }
+  .form-wrap h2 { font-size: 28px; }
   .password-label-row { align-items: flex-start; }
-  .forgot-link { font-size: 13px; }
-  .legal-row { flex-direction: column; align-items: flex-start; gap: 8px; margin-top: auto; padding-top: 10px; }
+  .forgot-link { font-size: 12px; }
+  .legal-row { gap: 6px; }
+}
+
+@media (max-height: 820px) and (min-width: 701px) {
+  .login-page { padding-block: 10px; }
+  .promo-content { padding-block: 28px; }
+  .promo-copy { margin-top: clamp(22px, 5vh, 58px); }
+  .promo-copy > p { margin-top: 14px; }
+  .feature-list { margin-top: 16px; gap: 7px; }
+  .form-panel { padding-block: 16px; }
+  .form-wrap { margin-top: clamp(20px, 6vh, 58px); }
+  .subtitle { margin-bottom: 20px; }
+  .input-wrap { margin-bottom: 14px; }
+  .form-options { margin-bottom: 18px; }
+  .primary-button,
+  .google-button { height: 50px; }
+  .or-divider { margin: 18px 0; }
+}
+
+@media (max-height: 680px) and (min-width: 701px) {
+  .promo-content { padding-block: 18px; }
+  .promo-eyebrow { margin-top: 12px; }
+  .promo-copy { margin-top: 20px; }
+  .promo-copy h1 { font-size: clamp(28px, 3.8vw, 52px); }
+  .promo-copy > p { font-size: 13px; margin-top: 10px; }
+  .feature-list { margin-top: 10px; gap: 5px; }
+  .feature-list li { font-size: 12px; }
+  .feature-icon { width: 30px; height: 30px; flex-basis: 30px; }
+  .form-panel { padding-block: 10px; }
+  .form-wrap { margin-top: 14px; }
+  .form-wrap h2 { font-size: clamp(28px, 3vw, 42px); }
+  .subtitle { margin-bottom: 12px; font-size: 14px; }
+  .input-wrap { margin-bottom: 10px; }
+  .input-wrap input { height: 46px; }
+  .form-options { margin-bottom: 12px; }
+  .primary-button,
+  .google-button { height: 46px; }
+  .or-divider { margin: 10px 0; }
+  .legal-row { font-size: 11px; }
+}
+
+@media (max-height: 760px) and (max-width: 700px) {
+  .promo-panel { height: 29%; flex-basis: 29%; }
+  .form-panel { height: 71%; flex-basis: 71%; }
+  .promo-content { padding-block: 12px; }
+  .promo-copy { margin-top: 12px; }
+  .promo-copy h1 { font-size: clamp(22px, 7vw, 28px); }
+  .feature-list { margin-top: 7px; gap: 4px 8px; }
+  .feature-list li { font-size: 10px; }
+  .feature-icon { width: 24px; height: 24px; flex-basis: 24px; }
+  .form-panel { padding-block: 10px; }
+  .form-wrap { margin-top: 10px; }
+  .subtitle { margin-bottom: 12px; }
+  .input-wrap { margin-bottom: 10px; }
+  .form-options { margin-bottom: 12px; }
+  .primary-button,
+  .google-button { height: 46px; }
+  .or-divider { margin: 10px 0; }
 }
