@@ -1,27 +1,53 @@
-# PrimeBiller — Girder Login UI
+# PrimeBiller
 
-A responsive React/Vite implementation of the supplied Girder login design.
+Girder-style billing platform workspace.
 
-## Included
+## Project structure
 
-- Split-screen desktop login layout matching the supplied reference.
-- Separate warehouse background asset at `public/images/login-warehouse-bg.svg`.
-- Responsive tablet and mobile layouts.
-- Email/password fields, password visibility toggle, remember-me checkbox, forgot-password action, Google sign-in action, contact action, and legal links.
-- No backend authentication is implemented in this UI-only change.
+```
+primebiller/
+├── frontend/                 # React + Vite login/UI application
+│   ├── src/
+│   ├── public/
+│   ├── index.html
+│   ├── package.json
+│   └── vite.config.js
+│
+├── backend/                  # Reserved for the next development phase
+│   └── README.md
+│
+└── README.md
+```
 
-## Run
+## Current phase
+
+The current implementation is the **frontend login UI phase**. The supplied Girder design has been implemented with responsive desktop, tablet, and mobile layouts.
+
+The frontend includes the login presentation and UI interactions only. Authentication, sessions, Better Auth, PostgreSQL, API endpoints, authorization, and other backend functionality are intentionally not implemented yet.
+
+## Frontend
 
 ```bash
+cd frontend
 npm install
 npm run dev
 ```
 
-## Design QA completed before GitHub update
+Production build:
 
-- JSX syntax checked with TypeScript (`tsc --noEmit`).
-- Desktop, tablet, tablet-portrait, mobile and mobile-large breakpoints manually reviewed against the supplied reference.
-- Responsive breakpoints explicitly cover <=1150px, <=900px, <=700px and <=420px.
-- Checked semantic labels, keyboard-submit path, password visibility control, remember-me control and touch-friendly button heights.
-- Checked for horizontal overflow risks in the responsive rules.
-- Background image is stored as a separate production asset rather than embedded in the component.
+```bash
+cd frontend
+npm run build
+```
+
+## Backend — next phase
+
+Backend development will live under `backend/` and will be started after the login UI is accepted. The planned stack is Node.js + Better Auth + PostgreSQL.
+
+Keeping these concerns separate allows frontend work and backend authentication development to evolve independently.
+
+## Design QA
+
+The login UI was reviewed across desktop, tablet, tablet-portrait, mobile, and small-mobile breakpoints. The project also includes the standalone warehouse background asset at:
+
+`frontend/public/images/login-warehouse-bg.svg`
