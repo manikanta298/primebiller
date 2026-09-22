@@ -426,3 +426,60 @@ form label { display: block; margin-bottom: 10px; font-size: 16px; font-weight: 
   .forgot-link { font-size: 12px; }
   .legal-row { gap: 6px; }
 }
+
+@media (max-height: 820px) and (min-width: 701px) {
+  .login-page { padding-block: 10px; }
+  .promo-content { padding-block: 28px; }
+  .promo-copy { margin-top: clamp(22px, 5vh, 58px); }
+  .promo-copy > p { margin-top: 14px; }
+  .feature-list { margin-top: 16px; gap: 7px; }
+  .form-panel { padding-block: 16px; }
+  .form-wrap { margin-top: clamp(20px, 6vh, 58px); }
+  .subtitle { margin-bottom: 20px; }
+  .input-wrap { margin-bottom: 14px; }
+  .form-options { margin-bottom: 18px; }
+  .primary-button,
+  .google-button { height: 50px; }
+  .or-divider { margin: 18px 0; }
+}
+
+@media (max-height: 680px) and (min-width: 701px) {
+  .promo-content { padding-block: 18px; }
+  .promo-eyebrow { margin-top: 12px; }
+  .promo-copy { margin-top: 20px; }
+  .promo-copy h1 { font-size: clamp(28px, 3.8vw, 52px); }
+  .promo-copy > p { font-size: 13px; margin-top: 10px; }
+  .feature-list { margin-top: 10px; gap: 5px; }
+  .feature-list li { font-size: 12px; }
+  .feature-icon { width: 30px; height: 30px; flex-basis: 30px; }
+  .form-panel { padding-block: 10px; }
+  .form-wrap { margin-top: 14px; }
+  .form-wrap h2 { font-size: clamp(28px, 3vw, 42px); }
+  .subtitle { margin-bottom: 12px; font-size: 14px; }
+  .input-wrap { margin-bottom: 10px; }
+  .input-wrap input { height: 46px; }
+  .form-options { margin-bottom: 12px; }
+  .primary-button,
+  .google-button { height: 46px; }
+  .or-divider { margin: 10px 0; }
+  .legal-row { font-size: 11px; }
+}
+
+@media (max-height: 760px) and (max-width: 700px) {
+  .promo-panel { height: 29%; flex-basis: 29%; }
+  .form-panel { height: 71%; flex-basis: 71%; }
+  .promo-content { padding-block: 12px; }
+  .promo-copy { margin-top: 12px; }
+  .promo-copy h1 { font-size: clamp(22px, 7vw, 28px); }
+  .feature-list { margin-top: 7px; gap: 4px 8px; }
+  .feature-list li { font-size: 10px; }
+  .feature-icon { width: 24px; height: 24px; flex-basis: 24px; }
+  .form-panel { padding-block: 10px; }
+  .form-wrap { margin-top: 10px; }
+  .subtitle { margin-bottom: 12px; }
+  .input-wrap { margin-bottom: 10px; }
+  .form-options { margin-bottom: 12px; }
+  .primary-button,
+  .google-button { height: 46px; }
+  .or-divider { margin: 10px 0; }
+}
