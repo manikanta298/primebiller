@@ -7,13 +7,23 @@
 }
 
 * { box-sizing: border-box; }
-html, body, #root { min-height: 100%; }
-body { margin: 0; min-width: 320px; background: #eef1f1; }
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+body { min-width: 320px; background: #eef1f1; }
 button, input { font: inherit; }
 button { cursor: pointer; }
 
 .login-page {
+  width: 100vw;
+  height: 100vh;
   min-height: 100vh;
+  overflow: hidden;
   padding: 24px 28px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -22,7 +32,8 @@ button { cursor: pointer; }
 
 .promo-panel,
 .form-panel {
-  min-height: calc(100vh - 48px);
+  height: calc(100vh - 48px);
+  min-height: 0;
   overflow: hidden;
 }
 
@@ -300,11 +311,11 @@ form label { display: block; margin-bottom: 10px; font-size: 16px; font-weight: 
 }
 
 @media (max-width: 700px) {
-  .login-page { display: block; padding: 0; background: #fff; }
-  .promo-panel, .form-panel { min-height: auto; border-radius: 0; }
-  .promo-panel { min-height: 285px; background-position: center; }
+  .login-page { display: flex; flex-direction: column; padding: 0; background: #fff; }
+  .promo-panel, .form-panel { min-height: 0; border-radius: 0; }
+  .promo-panel { height: 34%; flex: 0 0 34%; background-position: center; }
   .promo-overlay { background: linear-gradient(180deg, rgba(7,45,39,.65), rgba(7,45,39,.9)); }
-  .promo-content { min-height: 285px; padding: 28px 24px 25px; }
+  .promo-content { height: 100%; min-height: 0; padding: 24px 24px 20px; }
   .brand { font-size: 35px; letter-spacing: -1.6px; }
   .brand-mark { width: 38px; height: 38px; }
   .promo-eyebrow { margin-top: 14px; font-size: 8px; letter-spacing: 1.1px; }
@@ -318,29 +329,30 @@ form label { display: block; margin-bottom: 10px; font-size: 16px; font-weight: 
   .feature-list li:last-child { grid-column: 1 / -1; }
   .promo-footer { display: none; }
 
-  .form-panel { padding: 25px 24px 28px; }
+  .form-panel { height: 66%; flex: 0 0 66%; padding: 20px 24px 20px; }
   .top-action { justify-content: space-between; font-size: 14px; }
   .contact-button { padding: 9px 13px; }
-  .form-wrap { width: 100%; margin-top: 55px; }
+  .form-wrap { width: 100%; margin-top: 34px; }
   .form-wrap h2 { font-size: 34px; letter-spacing: -1.4px; }
   .subtitle { margin-bottom: 30px; font-size: 16px; }
   .input-wrap input { height: 54px; }
   .primary-button, .google-button { height: 56px; }
-  .legal-row { margin-top: 70px; font-size: 12px; }
+  .legal-row { margin-top: auto; padding-top: 14px; font-size: 12px; }
 }
 
 @media (max-width: 420px) {
-  .promo-panel, .promo-content { min-height: 270px; }
-  .promo-content { padding-inline: 20px; }
+  .promo-panel { height: 31%; flex-basis: 31%; }
+  .promo-content { padding: 20px; }
+  .form-panel { height: 69%; flex-basis: 69%; }
   .brand { font-size: 32px; }
   .brand-mark { width: 35px; height: 35px; }
   .promo-copy h1 { font-size: 30px; }
   .feature-list { grid-template-columns: 1fr; }
   .feature-list li:last-child { grid-column: auto; }
   .form-panel { padding-inline: 20px; }
-  .form-wrap { margin-top: 46px; }
+  .form-wrap { margin-top: 25px; }
   .form-wrap h2 { font-size: 31px; }
   .password-label-row { align-items: flex-start; }
   .forgot-link { font-size: 13px; }
-  .legal-row { flex-direction: column; align-items: flex-start; gap: 10px; margin-top: 55px; }
+  .legal-row { flex-direction: column; align-items: flex-start; gap: 8px; margin-top: auto; padding-top: 10px; }
 }
