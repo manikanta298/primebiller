@@ -30,7 +30,7 @@ button { cursor: pointer; }
   position: relative;
   border-radius: 22px 0 0 22px;
   background-color: #0d3e36;
-  background-image: url('/images/Girder-login-background.png'), url('/images/login-warehouse-bg.svg');
+  background-image: url('/images/Girder-login-background.png');
   background-position: center, center;
   background-size: cover, cover;
   background-repeat: no-repeat, no-repeat;
