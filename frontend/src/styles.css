@@ -483,3 +483,773 @@ form label { display: block; margin-bottom: 10px; font-size: 16px; font-weight: 
   .google-button { height: 46px; }
   .or-divider { margin: 10px 0; }
 }
+
+
+/* =========================================================
+   Final viewport-safe responsive pass
+   Keeps the login UI inside exactly one viewport with no
+   horizontal/vertical page scrolling.
+   ========================================================= */
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  overflow: hidden;
+}
+
+.login-page {
+  width: 100vw;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  max-width: 100%;
+  max-height: 100%;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.login-page > * {
+  min-width: 0;
+  min-height: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.promo-panel,
+.form-panel {
+  min-width: 0;
+  min-height: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.promo-panel {
+  background-position: center center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+.promo-content,
+.form-panel,
+.form-wrap,
+form {
+  min-width: 0;
+  min-height: 0;
+  box-sizing: border-box;
+}
+
+.brand,
+.brand-mark,
+.promo-copy,
+.promo-copy h1,
+.promo-copy > p,
+.feature-list,
+.feature-list li,
+.form-wrap h2,
+.subtitle,
+.input-wrap,
+.input-wrap input,
+.top-action,
+.legal-row {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.brand {
+  flex-shrink: 1;
+  overflow: hidden;
+}
+
+.brand-mark {
+  flex-shrink: 0;
+}
+
+.promo-copy h1,
+.promo-copy > p,
+.feature-list li span {
+  overflow-wrap: anywhere;
+}
+
+.form-wrap h2,
+.subtitle,
+form label,
+.forgot-link,
+.remember-label,
+.primary-button,
+.google-button {
+  overflow-wrap: anywhere;
+}
+
+/* Wide desktop: use viewport-relative spacing without allowing
+   content to grow beyond the panel. */
+@media (min-width: 1151px) {
+  .promo-content {
+    padding-top: clamp(24px, 5vh, 58px);
+    padding-bottom: clamp(20px, 4vh, 48px);
+    padding-inline: clamp(24px, 4.8vw, 72px);
+  }
+
+  .promo-copy {
+    margin-top: clamp(28px, 8vh, 104px);
+  }
+
+  .form-panel {
+    padding-top: clamp(16px, 2.5vh, 26px);
+    padding-bottom: clamp(16px, 2.5vh, 26px);
+    padding-inline: clamp(22px, 3.6vw, 52px);
+  }
+
+  .form-wrap {
+    margin-top: clamp(24px, 9vh, 112px);
+  }
+}
+
+/* Laptop / short desktop: reduce vertical rhythm before anything
+   can be clipped. */
+@media (min-width: 701px) and (max-height: 900px) {
+  .promo-content {
+    padding-top: clamp(18px, 4vh, 34px);
+    padding-bottom: clamp(16px, 3vh, 28px);
+  }
+
+  .promo-copy {
+    margin-top: clamp(20px, 5vh, 48px);
+  }
+
+  .promo-copy h1 {
+    font-size: clamp(30px, 4vw, 54px);
+  }
+
+  .promo-copy > p {
+    font-size: clamp(13px, 1.2vw, 17px);
+    margin-top: clamp(10px, 2vh, 18px);
+  }
+
+  .feature-list {
+    margin-top: clamp(10px, 2vh, 18px);
+    gap: clamp(5px, 1vh, 9px);
+  }
+
+  .feature-list li {
+    font-size: clamp(11px, 1.05vw, 15px);
+  }
+
+  .form-panel {
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+
+  .form-wrap {
+    margin-top: clamp(16px, 5vh, 48px);
+  }
+
+  .form-wrap h2 {
+    font-size: clamp(28px, 3.2vw, 44px);
+    margin-top: 8px;
+  }
+
+  .subtitle {
+    font-size: clamp(13px, 1.15vw, 17px);
+    margin-bottom: clamp(14px, 2vh, 22px);
+  }
+
+  form label {
+    font-size: clamp(13px, 1.05vw, 15px);
+    margin-bottom: 7px;
+  }
+
+  .input-wrap {
+    margin-bottom: clamp(10px, 1.7vh, 16px);
+  }
+
+  .input-wrap input {
+    height: clamp(44px, 6vh, 52px);
+    font-size: clamp(13px, 1.05vw, 15px);
+  }
+
+  .form-options {
+    margin-bottom: clamp(12px, 2vh, 20px);
+  }
+
+  .primary-button,
+  .google-button {
+    height: clamp(44px, 6vh, 52px);
+    font-size: clamp(14px, 1.1vw, 16px);
+  }
+
+  .or-divider {
+    margin: clamp(12px, 2vh, 20px) 0;
+  }
+
+  .legal-row {
+    font-size: clamp(10px, 0.95vw, 13px);
+  }
+}
+
+/* Tablet portrait: switch to a vertical composition so the
+   768x1024 viewport never produces a cramped two-column form. */
+@media (max-width: 767px) {
+  .login-page {
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+  }
+
+  .promo-panel {
+    width: 100%;
+    height: 30%;
+    flex: 0 0 30%;
+    border-radius: 0;
+  }
+
+  .form-panel {
+    width: 100%;
+    height: 70%;
+    flex: 0 0 70%;
+    border-radius: 0;
+  }
+
+  .promo-content {
+    padding: clamp(14px, 2.8vw, 24px);
+  }
+
+  .brand {
+    font-size: clamp(26px, 5.5vw, 36px);
+  }
+
+  .brand-mark {
+    width: clamp(28px, 6vw, 38px);
+    height: clamp(28px, 6vw, 38px);
+  }
+
+  .promo-eyebrow {
+    margin-top: clamp(7px, 1.5vh, 12px);
+    font-size: clamp(7px, 1.5vw, 10px);
+  }
+
+  .promo-copy {
+    margin-top: clamp(12px, 3vh, 28px);
+  }
+
+  .promo-copy h1 {
+    max-width: 620px;
+    font-size: clamp(23px, 5vw, 36px);
+    line-height: 1;
+  }
+
+  .promo-copy > p {
+    display: block;
+    max-width: 760px;
+    margin-top: clamp(8px, 1.8vh, 16px);
+    font-size: clamp(11px, 1.9vw, 15px);
+  }
+
+  .feature-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: clamp(5px, 1vh, 9px) clamp(8px, 2vw, 18px);
+    margin-top: clamp(8px, 1.8vh, 16px);
+  }
+
+  .feature-list li {
+    font-size: clamp(10px, 1.8vw, 14px);
+    gap: clamp(5px, 1.2vw, 10px);
+  }
+
+  .feature-icon {
+    width: clamp(24px, 4.5vw, 34px);
+    height: clamp(24px, 4.5vw, 34px);
+    flex-basis: clamp(24px, 4.5vw, 34px);
+    border-radius: 9px;
+  }
+
+  .feature-icon svg {
+    width: clamp(12px, 2.3vw, 17px);
+    height: clamp(12px, 2.3vw, 17px);
+  }
+
+  .promo-footer {
+    display: none;
+  }
+
+  .form-panel {
+    padding: clamp(12px, 2.5vw, 22px);
+  }
+
+  .top-action {
+    font-size: clamp(11px, 1.8vw, 14px);
+  }
+
+  .contact-button {
+    padding: clamp(7px, 1.2vw, 10px) clamp(10px, 1.8vw, 16px);
+  }
+
+  .form-wrap {
+    width: min(100%, 620px);
+    margin: clamp(10px, 3vh, 28px) auto 0;
+  }
+
+  .form-wrap h2 {
+    font-size: clamp(25px, 5.8vw, 38px);
+    letter-spacing: -1.4px;
+  }
+
+  .subtitle {
+    font-size: clamp(12px, 2.2vw, 16px);
+    margin-bottom: clamp(12px, 2.2vh, 20px);
+  }
+
+  form label {
+    font-size: clamp(12px, 2vw, 15px);
+    margin-bottom: 7px;
+  }
+
+  .input-wrap {
+    margin-bottom: clamp(9px, 1.8vh, 15px);
+  }
+
+  .input-wrap input {
+    height: clamp(42px, 6.5vh, 52px);
+    padding-left: clamp(46px, 6vw, 56px);
+    padding-right: clamp(44px, 6vw, 52px);
+    font-size: clamp(12px, 2vw, 15px);
+  }
+
+  .field-icon {
+    left: clamp(14px, 2.5vw, 20px);
+    width: clamp(19px, 3vw, 23px);
+    height: clamp(19px, 3vw, 23px);
+  }
+
+  .password-toggle {
+    right: clamp(12px, 2.5vw, 18px);
+  }
+
+  .forgot-link {
+    font-size: clamp(11px, 1.8vw, 14px);
+  }
+
+  .remember-label {
+    gap: clamp(7px, 1.4vw, 10px);
+    font-size: clamp(11px, 1.8vw, 14px);
+  }
+
+  .checkmark {
+    width: clamp(20px, 3.2vw, 23px);
+    height: clamp(20px, 3.2vw, 23px);
+    font-size: clamp(12px, 1.8vw, 14px);
+  }
+
+  .form-options {
+    margin-bottom: clamp(10px, 2vh, 18px);
+  }
+
+  .primary-button,
+  .google-button {
+    height: clamp(42px, 6.5vh, 52px);
+    font-size: clamp(13px, 2vw, 16px);
+  }
+
+  .primary-button {
+    gap: clamp(9px, 2vw, 15px);
+  }
+
+  .primary-button span {
+    font-size: clamp(20px, 3vw, 25px);
+  }
+
+  .or-divider {
+    gap: clamp(8px, 2vw, 14px);
+    margin: clamp(10px, 1.8vh, 18px) 0;
+    font-size: clamp(11px, 1.8vw, 13px);
+  }
+
+  .google-button {
+    gap: clamp(8px, 1.8vw, 12px);
+  }
+
+  .google-icon {
+    width: clamp(19px, 3vw, 23px);
+    height: clamp(19px, 3vw, 23px);
+  }
+
+  .legal-row {
+    padding-top: clamp(6px, 1vh, 10px);
+    font-size: clamp(9px, 1.6vw, 12px);
+    gap: 8px;
+  }
+
+  .legal-row div {
+    gap: clamp(6px, 1.5vw, 12px);
+  }
+}
+
+/* Small phones: preserve every form control while aggressively
+   reducing vertical rhythm instead of allowing overflow. */
+@media (max-width: 480px) {
+  .promo-panel {
+    height: 27%;
+    flex-basis: 27%;
+  }
+
+  .form-panel {
+    height: 73%;
+    flex-basis: 73%;
+  }
+
+  .promo-content {
+    padding: 12px 14px;
+  }
+
+  .brand {
+    font-size: clamp(24px, 8vw, 30px);
+  }
+
+  .brand-mark {
+    width: clamp(27px, 8vw, 32px);
+    height: clamp(27px, 8vw, 32px);
+  }
+
+  .promo-copy {
+    margin-top: 9px;
+  }
+
+  .promo-copy h1 {
+    font-size: clamp(21px, 7.2vw, 28px);
+  }
+
+  .promo-copy > p {
+    font-size: clamp(10px, 3vw, 12px);
+    line-height: 1.25;
+    margin-top: 6px;
+  }
+
+  .feature-list {
+    gap: 4px 7px;
+    margin-top: 7px;
+  }
+
+  .feature-list li {
+    font-size: clamp(9px, 2.8vw, 11px);
+    gap: 5px;
+  }
+
+  .feature-icon {
+    width: 23px;
+    height: 23px;
+    flex-basis: 23px;
+    border-radius: 7px;
+  }
+
+  .feature-icon svg {
+    width: 12px;
+    height: 12px;
+  }
+
+  .form-panel {
+    padding: 9px 14px 8px;
+  }
+
+  .top-action {
+    font-size: clamp(10px, 3vw, 12px);
+  }
+
+  .contact-button {
+    padding: 6px 10px;
+    border-radius: 8px;
+  }
+
+  .form-wrap {
+    margin-top: 7px;
+  }
+
+  .form-wrap h2 {
+    margin-top: 5px;
+    margin-bottom: 4px;
+    font-size: clamp(23px, 7.5vw, 29px);
+    letter-spacing: -1px;
+  }
+
+  .subtitle {
+    margin-bottom: 8px;
+    font-size: clamp(10px, 3.2vw, 13px);
+    line-height: 1.25;
+  }
+
+  form label {
+    font-size: clamp(11px, 3vw, 13px);
+    margin-bottom: 4px;
+  }
+
+  .input-wrap {
+    margin-bottom: 7px;
+  }
+
+  .input-wrap input {
+    height: clamp(38px, 11vw, 44px);
+    border-radius: 8px;
+    padding-left: 42px;
+    padding-right: 40px;
+    font-size: clamp(11px, 3vw, 13px);
+  }
+
+  .field-icon {
+    left: 12px;
+    width: 18px;
+    height: 18px;
+  }
+
+  .password-toggle {
+    right: 9px;
+    width: 25px;
+    height: 25px;
+  }
+
+  .password-toggle svg {
+    width: 19px;
+    height: 19px;
+  }
+
+  .password-label-row label,
+  .forgot-link {
+    margin-bottom: 4px;
+  }
+
+  .forgot-link {
+    font-size: clamp(10px, 2.8vw, 12px);
+  }
+
+  .form-options {
+    margin-bottom: 8px;
+  }
+
+  .remember-label {
+    gap: 6px;
+    font-size: clamp(10px, 2.8vw, 12px);
+  }
+
+  .checkmark {
+    width: 19px;
+    height: 19px;
+    border-radius: 5px;
+    font-size: 11px;
+  }
+
+  .primary-button,
+  .google-button {
+    height: clamp(38px, 11vw, 44px);
+    border-radius: 8px;
+    font-size: clamp(11px, 3vw, 13px);
+  }
+
+  .primary-button {
+    gap: 8px;
+  }
+
+  .primary-button span {
+    font-size: 19px;
+  }
+
+  .or-divider {
+    margin: 6px 0;
+    gap: 7px;
+    font-size: 10px;
+  }
+
+  .google-button {
+    gap: 7px;
+  }
+
+  .google-icon {
+    width: 18px;
+    height: 18px;
+  }
+
+  .legal-row {
+    padding-top: 4px;
+    font-size: clamp(8px, 2.4vw, 10px);
+    gap: 5px;
+  }
+
+  .legal-row div {
+    gap: 5px;
+  }
+}
+
+/* Very short phones, including 375x667 and 320x568. */
+@media (max-width: 480px) and (max-height: 700px) {
+  .promo-panel {
+    height: 24%;
+    flex-basis: 24%;
+  }
+
+  .form-panel {
+    height: 76%;
+    flex-basis: 76%;
+  }
+
+  .promo-content {
+    padding: 8px 12px;
+  }
+
+  .brand {
+    font-size: clamp(22px, 7vw, 27px);
+  }
+
+  .brand-mark {
+    width: 25px;
+    height: 25px;
+  }
+
+  .promo-eyebrow {
+    margin-top: 4px;
+    font-size: 7px;
+  }
+
+  .promo-copy {
+    margin-top: 5px;
+  }
+
+  .promo-copy h1 {
+    font-size: clamp(19px, 6.7vw, 24px);
+  }
+
+  .promo-copy > p {
+    display: none;
+  }
+
+  .feature-list {
+    margin-top: 5px;
+    gap: 3px 6px;
+  }
+
+  .feature-list li {
+    font-size: clamp(8px, 2.5vw, 10px);
+  }
+
+  .feature-icon {
+    width: 20px;
+    height: 20px;
+    flex-basis: 20px;
+  }
+
+  .feature-icon svg {
+    width: 10px;
+    height: 10px;
+  }
+
+  .form-panel {
+    padding: 7px 12px 6px;
+  }
+
+  .top-action {
+    font-size: 9px;
+  }
+
+  .contact-button {
+    padding: 5px 8px;
+  }
+
+  .form-wrap {
+    margin-top: 4px;
+  }
+
+  .form-wrap h2 {
+    margin-top: 3px;
+    margin-bottom: 2px;
+    font-size: clamp(21px, 7vw, 25px);
+  }
+
+  .subtitle {
+    margin-bottom: 5px;
+    font-size: clamp(9px, 2.8vw, 11px);
+  }
+
+  form label {
+    font-size: 10px;
+    margin-bottom: 3px;
+  }
+
+  .input-wrap {
+    margin-bottom: 5px;
+  }
+
+  .input-wrap input {
+    height: 36px;
+    padding-left: 38px;
+    padding-right: 36px;
+    font-size: 10px;
+  }
+
+  .field-icon {
+    left: 10px;
+    width: 16px;
+    height: 16px;
+  }
+
+  .password-toggle {
+    right: 7px;
+    width: 23px;
+    height: 23px;
+  }
+
+  .password-toggle svg {
+    width: 17px;
+    height: 17px;
+  }
+
+  .password-label-row label,
+  .forgot-link {
+    margin-bottom: 3px;
+  }
+
+  .forgot-link {
+    font-size: 9px;
+  }
+
+  .form-options {
+    margin-bottom: 5px;
+  }
+
+  .remember-label {
+    gap: 5px;
+    font-size: 9px;
+  }
+
+  .checkmark {
+    width: 17px;
+    height: 17px;
+    font-size: 10px;
+  }
+
+  .primary-button,
+  .google-button {
+    height: 36px;
+    font-size: 10px;
+  }
+
+  .primary-button span {
+    font-size: 16px;
+  }
+
+  .or-divider {
+    margin: 5px 0;
+    font-size: 9px;
+  }
+
+  .google-icon {
+    width: 16px;
+    height: 16px;
+  }
+
+  .legal-row {
+    padding-top: 3px;
+    font-size: 8px;
+  }
+}
