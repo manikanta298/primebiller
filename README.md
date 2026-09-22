@@ -50,4 +50,4 @@ Keeping these concerns separate allows frontend work and backend authentication 
 
 The login UI was reviewed across desktop, tablet, tablet-portrait, mobile, and small-mobile breakpoints. The project also includes the standalone warehouse background asset at:
 
-`frontend/public/images/login-warehouse-bg.svg`
+`frontend/public/images/Girder-login-background.png` (primary) with `login-warehouse-bg.svg` as a local fallback
