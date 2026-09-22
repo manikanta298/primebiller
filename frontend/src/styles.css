@@ -127,7 +127,7 @@ button { cursor: pointer; }
 }
 
 .promo-footer { margin-top: auto; }
-.footer-rule { display: block; width: 52px; height: 3px; border-radius: 99px; background: #fff; margin-bottom: 24px; }
+.footer-rule { display: block; width: 52px; height: 3px; border-radius: 99px; margin-bottom: 24px; }
 .promo-footer p { margin: 0; font-size: 13px; letter-spacing: 3px; color: rgba(255,255,255,.75); }
 
 .form-panel {
