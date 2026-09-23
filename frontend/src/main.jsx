@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import { authClient } from './auth-client';
 import './styles.css';
 
 const features = [
@@ -49,14 +50,106 @@ function GoogleIcon() {
   return <svg className="google-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M21.6 12.2c0-.7-.1-1.4-.2-2H12v3.8h5.4a4.7 4.7 0 0 1-2 3.1v2.6h3.2c1.9-1.8 3-4.3 3-7.5Z"/><path fill="#34A853" d="M12 22c2.7 0 5-.9 6.6-2.4l-3.2-2.6c-.9.6-2 1-3.4 1-2.6 0-4.8-1.8-5.6-4.2H3.1v2.7A10 10 0 0 0 12 22Z"/><path fill="#FBBC05" d="M6.4 13.8a6 6 0 0 1 0-3.6V7.5H3.1a10 10 0 0 0 0 9l3.3-2.7Z"/><path fill="#EA4335" d="M12 6c1.5 0 2.8.5 3.9 1.6l2.9-2.9C17 3 14.7 2 12 2a10 10 0 0 0-8.9 5.5l3.3 2.7C7.2 7.8 9.4 6 12 6Z"/></svg>;
 }
 
+const DEMO_EMAIL = 'manikantakambala12@gmail.com';
+
 function App() {
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(true);
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(DEMO_EMAIL);
   const [password, setPassword] = useState('');
+  const [authMessage, setAuthMessage] = useState('');
+  const [authError, setAuthError] = useState('');
+  const [isSigningIn, setIsSigningIn] = useState(false);
 
-  const handleSubmit = (event) => {
+  const [resetOpen, setResetOpen] = useState(false);
+  const [resetStep, setResetStep] = useState('request');
+  const [resetEmail, setResetEmail] = useState(DEMO_EMAIL);
+  const [resetOtp, setResetOtp] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [resetMessage, setResetMessage] = useState('');
+  const [resetError, setResetError] = useState('');
+  const [isResetting, setIsResetting] = useState(false);
+
+  const handleSubmit = async (event) => {
     event.preventDefault();
+    setAuthMessage('');
+    setAuthError('');
+    setIsSigningIn(true);
+
+    const { error } = await authClient.signIn.email({
+      email,
+      password,
+      rememberMe: remember,
+    });
+
+    setIsSigningIn(false);
+
+    if (error) {
+      setAuthError(error.message || 'Unable to sign in. Please check your email and password.');
+      return;
+    }
+
+    setAuthMessage('Signed in successfully.');
+  };
+
+  const openPasswordReset = () => {
+    setResetEmail(email || DEMO_EMAIL);
+    setResetOtp('');
+    setNewPassword('');
+    setResetStep('request');
+    setResetMessage('');
+    setResetError('');
+    setResetOpen(true);
+  };
+
+  const closePasswordReset = () => {
+    if (isResetting) return;
+    setResetOpen(false);
+  };
+
+  const requestPasswordReset = async (event) => {
+    event.preventDefault();
+    setResetMessage('');
+    setResetError('');
+    setIsResetting(true);
+
+    const { error } = await authClient.emailOtp.requestPasswordReset({
+      email: resetEmail,
+    });
+
+    setIsResetting(false);
+
+    if (error) {
+      setResetError(error.message || 'Unable to send the reset OTP.');
+      return;
+    }
+
+    setResetStep('otp');
+    setResetMessage('A one-time password was sent to your email.');
+  };
+
+  const confirmPasswordReset = async (event) => {
+    event.preventDefault();
+    setResetMessage('');
+    setResetError('');
+    setIsResetting(true);
+
+    const { error } = await authClient.emailOtp.resetPassword({
+      email: resetEmail,
+      otp: resetOtp,
+      password: newPassword,
+    });
+
+    setIsResetting(false);
+
+    if (error) {
+      setResetError(error.message || 'Invalid or expired OTP.');
+      return;
+    }
+
+    setResetStep('success');
+    setResetMessage('Password reset successfully. You can now sign in.');
+    setPassword('');
   };
 
   return (
@@ -104,7 +197,7 @@ function App() {
 
             <div className="password-label-row">
               <label htmlFor="password">Password</label>
-              <button type="button" className="forgot-link">Forgot password?</button>
+              <button type="button" className="forgot-link" onClick={openPasswordReset}>Forgot password?</button>
             </div>
             <div className="input-wrap">
               <LockIcon />
@@ -120,7 +213,14 @@ function App() {
               </label>
             </div>
 
-            <button type="submit" className="primary-button">Sign in <span aria-hidden="true">→</span></button>
+            <button type="submit" className="primary-button" disabled={isSigningIn}>
+              {isSigningIn ? 'Signing in…' : 'Sign in'} <span aria-hidden="true">→</span>
+            </button>
+            {(authMessage || authError) && (
+              <p className={authError ? 'auth-feedback error' : 'auth-feedback success'} role="status">
+                {authError || authMessage}
+              </p>
+            )}
           </form>
 
           <div className="or-divider"><span>OR</span></div>
@@ -132,6 +232,104 @@ function App() {
           <span>v1.0.0</span>
         </div>
       </section>
+
+      {resetOpen && (
+        <div className="reset-modal-backdrop" role="presentation" onMouseDown={closePasswordReset}>
+          <section
+            className="reset-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="reset-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <button type="button" className="reset-close" onClick={closePasswordReset} aria-label="Close password reset">
+              ×
+            </button>
+
+            {resetStep === 'request' && (
+              <>
+                <p className="eyebrow">ACCOUNT RECOVERY</p>
+                <h3 id="reset-title">Reset your password</h3>
+                <p className="reset-copy">We’ll send a one-time password to your registered email address.</p>
+                <form onSubmit={requestPasswordReset}>
+                  <label htmlFor="reset-email">Email address</label>
+                  <input
+                    id="reset-email"
+                    type="email"
+                    autoComplete="email"
+                    value={resetEmail}
+                    onChange={(event) => setResetEmail(event.target.value)}
+                    required
+                  />
+                  <button className="reset-primary" type="submit" disabled={isResetting}>
+                    {isResetting ? 'Sending OTP…' : 'Send OTP'}
+                  </button>
+                </form>
+              </>
+            )}
+
+            {resetStep === 'otp' && (
+              <>
+                <p className="eyebrow">VERIFY OTP</p>
+                <h3 id="reset-title">Enter your OTP</h3>
+                <p className="reset-copy">
+                  Enter the 6-digit code sent to <strong>{resetEmail}</strong>.
+                </p>
+                <form onSubmit={confirmPasswordReset}>
+                  <label htmlFor="reset-otp">One-time password</label>
+                  <input
+                    id="reset-otp"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={6}
+                    pattern="[0-9]{6}"
+                    value={resetOtp}
+                    onChange={(event) => setResetOtp(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                    required
+                  />
+                  <label htmlFor="new-password">New password</label>
+                  <input
+                    id="new-password"
+                    type="password"
+                    autoComplete="new-password"
+                    minLength={8}
+                    value={newPassword}
+                    onChange={(event) => setNewPassword(event.target.value)}
+                    required
+                  />
+                  <button className="reset-primary" type="submit" disabled={isResetting}>
+                    {isResetting ? 'Resetting…' : 'Reset password'}
+                  </button>
+                </form>
+              </>
+            )}
+
+            {resetStep === 'success' && (
+              <>
+                <p className="eyebrow">PASSWORD UPDATED</p>
+                <h3 id="reset-title">You’re all set</h3>
+                <p className="reset-copy">Your password has been reset successfully.</p>
+                <button
+                  type="button"
+                  className="reset-primary"
+                  onClick={() => {
+                    setResetOpen(false);
+                    setResetStep('request');
+                  }}
+                >
+                  Back to sign in
+                </button>
+              </>
+            )}
+
+            {(resetMessage || resetError) && (
+              <p className={resetError ? 'auth-feedback error' : 'auth-feedback success'} role="status">
+                {resetError || resetMessage}
+              </p>
+            )}
+          </section>
+        </div>
+      )}
     </main>
   );
 }
