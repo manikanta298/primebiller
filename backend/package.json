@@ -14,7 +14,7 @@
     "better-sqlite3": "latest",
     "cors": "latest",
     "dotenv": "latest",
-    "express": "latest",
+    "express": "^5.1.0",
     "nodemailer": "latest"
   }
 }
