@@ -105,11 +105,11 @@ The frontend calls Better Auth at `VITE_AUTH_URL`.
 6. Enter a new password with at least 8 characters.
 7. Better Auth verifies the OTP and changes the password.
 
-The Email OTP plugin officially supports the `forget-password` flow through `requestPasswordReset()` and `resetPassword()`. citeturn4search0
+The Email OTP plugin officially supports the `forget-password` flow through `requestPasswordReset()` and `resetPassword()`.
 
 ## Email delivery requirement
 
-The application code is configured to send the OTP, but an actual SMTP account is required before an email can leave the server. Better Auth delegates email delivery to the application's configured email provider. citeturn3search10turn4search3
+The application code is configured to send the OTP, but an actual SMTP account is required before an email can leave the server. Better Auth delegates email delivery to the application's configured email provider.
 
 Do **not** put the demo password, SMTP password, or Better Auth secret into Git.
 
