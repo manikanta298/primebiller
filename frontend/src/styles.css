@@ -1253,3 +1253,151 @@ form label,
     font-size: 8px;
   }
 }
+
+
+/* Better Auth feedback and password-reset dialog */
+.primary-button:disabled,
+.reset-primary:disabled {
+  cursor: wait;
+  opacity: .72;
+}
+
+.auth-feedback {
+  margin: 10px 0 0;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.auth-feedback.success {
+  color: #0f5a4d;
+}
+
+.auth-feedback.error {
+  color: #b42318;
+}
+
+.reset-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(9, 26, 23, .52);
+  backdrop-filter: blur(5px);
+}
+
+.reset-modal {
+  position: relative;
+  width: min(100%, 460px);
+  max-height: min(90vh, 620px);
+  overflow: auto;
+  padding: clamp(24px, 4vw, 36px);
+  border: 1px solid rgba(15, 90, 77, .12);
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(10, 28, 25, .24);
+}
+
+.reset-modal h3 {
+  margin: 10px 0 8px;
+  color: #111827;
+  font-size: clamp(26px, 5vw, 34px);
+  line-height: 1.05;
+  letter-spacing: -1.2px;
+}
+
+.reset-copy {
+  margin: 0 0 22px;
+  color: #526176;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.reset-modal form {
+  display: grid;
+  gap: 8px;
+}
+
+.reset-modal form label {
+  margin: 5px 0 0;
+  font-size: 14px;
+}
+
+.reset-modal form input {
+  width: 100%;
+  height: 48px;
+  padding: 0 14px;
+  border: 1px solid #cbd2da;
+  border-radius: 9px;
+  outline: none;
+  background: #fff;
+  color: #111827;
+  font-size: 15px;
+}
+
+.reset-modal form input:focus {
+  border-color: #176c5d;
+  box-shadow: 0 0 0 3px rgba(23,108,93,.11);
+}
+
+.reset-primary {
+  width: 100%;
+  height: 48px;
+  margin-top: 10px;
+  border: 0;
+  border-radius: 9px;
+  background: #145c4e;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.reset-primary:hover:not(:disabled) {
+  background: #0f5144;
+}
+
+.reset-close {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: #f2f5f5;
+  color: #475569;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.reset-close:hover {
+  background: #e7eceb;
+}
+
+@media (max-width: 480px) {
+  .reset-modal-backdrop {
+    padding: 12px;
+  }
+
+  .reset-modal {
+    max-height: 94vh;
+    padding: 22px 18px;
+    border-radius: 16px;
+  }
+
+  .reset-modal h3 {
+    font-size: 25px;
+  }
+
+  .reset-copy {
+    margin-bottom: 15px;
+    font-size: 13px;
+  }
+
+  .reset-modal form input,
+  .reset-primary {
+    height: 44px;
+  }
+}

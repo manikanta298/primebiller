@@ -1,0 +1,20 @@
+{
+  "name": "primebiller-backend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch server.js",
+    "start": "node server.js",
+    "seed:demo": "node seed-demo.js",
+    "db:migrate": "npx auth@latest migrate --config ./auth.js"
+  },
+  "dependencies": {
+    "better-auth": "latest",
+    "better-sqlite3": "latest",
+    "cors": "latest",
+    "dotenv": "latest",
+    "express": "^5.1.0",
+    "nodemailer": "latest"
+  }
+}
