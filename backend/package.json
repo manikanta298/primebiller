@@ -11,10 +11,10 @@
   },
   "dependencies": {
     "better-auth": "latest",
-    "better-sqlite3": "latest",
     "cors": "latest",
     "dotenv": "latest",
     "express": "^5.1.0",
-    "nodemailer": "latest"
+    "nodemailer": "latest",
+    "pg": "latest"
   }
 }
