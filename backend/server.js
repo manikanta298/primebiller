@@ -38,6 +38,6 @@ app.get("/api/me", async (req, res) => {
   }
 });
 
-app.listen(port, () => {
-  console.log(`Girder Better Auth server running on http://localhost:${port}`);
+app.listen(port, "0.0.0.0", () => {
+  console.log(`Girder Better Auth server running on port ${port}`);
 });
