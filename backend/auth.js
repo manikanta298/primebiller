@@ -1,14 +1,18 @@
 import "dotenv/config";
-import fs from "node:fs";
-import path from "node:path";
-import Database from "better-sqlite3";
+import pg from "pg";
 import { betterAuth } from "better-auth";
 import { emailOTP } from "better-auth/plugins";
 import { sendOtpEmail } from "./email.js";
 
-const databaseUrl = process.env.DATABASE_URL || "./data/primebiller.sqlite";
-const databasePath = path.resolve(databaseUrl);
-fs.mkdirSync(path.dirname(databasePath), { recursive: true });
+const { Pool } = pg;
+
+const databaseUrl = process.env.DATABASE_URL;
+
+if (!databaseUrl) {
+  throw new Error(
+    "DATABASE_URL is missing. Set the Supabase PostgreSQL connection string in Render environment variables."
+  );
+}
 
 const betterAuthSecret =
   process.env.BETTER_AUTH_SECRET || process.env.AUTH_SECRET;
@@ -23,7 +27,9 @@ const trustedOrigins = [
   process.env.FRONTEND_URL || "http://localhost:5173",
 ];
 
-const database = new Database(databasePath);
+const database = new Pool({
+  connectionString: databaseUrl,
+});
 
 export const auth = betterAuth({
   appName: "Girder",
