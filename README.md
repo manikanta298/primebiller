@@ -9,45 +9,113 @@ primebiller/
 ├── frontend/                 # React + Vite login/UI application
 │   ├── src/
 │   ├── public/
-│   ├── index.html
 │   ├── package.json
 │   └── vite.config.js
 │
-├── backend/                  # Reserved for the next development phase
-│   └── README.md
+├── backend/                  # Better Auth + Express authentication server
+│   ├── auth.js
+│   ├── email.js
+│   ├── server.js
+│   ├── seed-demo.js
+│   └── package.json
 │
 └── README.md
 ```
 
-## Current phase
+## Authentication
 
-The current implementation is the **frontend login UI phase**. The supplied Girder design has been implemented with responsive desktop, tablet, and mobile layouts.
+The login UI is now connected to **Better Auth** through a separate Express authentication server.
 
-The frontend includes the login presentation and UI interactions only. Authentication, sessions, Better Auth, PostgreSQL, API endpoints, authorization, and other backend functionality are intentionally not implemented yet.
+Implemented:
+- Email + password sign-in.
+- Persistent Better Auth sessions.
+- SQLite storage for users, accounts, sessions, and verification records.
+- Password-reset OTP flow using Better Auth's Email OTP plugin.
+- 6-digit OTP with a 5-minute lifetime and up to 5 verification attempts.
+- Demo account seed configuration for `manikantakambala12@gmail.com`.
+- SMTP email delivery for the password-reset OTP.
+- Password reset revokes other sessions.
 
-## Frontend
+Better Auth requires a server-side secret, a database, and a real email provider for OTP delivery. The demo password is intentionally **not committed to Git**; set it locally through `backend/.env`.
+
+## Run the backend
+
+```bash
+cd backend
+npm install
+cp .env.example .env
+```
+
+Generate a strong Better Auth secret and put it in `BETTER_AUTH_SECRET`. For example:
+
+```bash
+openssl rand -base64 32
+```
+
+Then configure the demo password and SMTP credentials in `backend/.env`.
+
+Run the Better Auth database migration:
+
+```npm
+npm run db:migrate
+```
+
+Seed the demo account:
+
+```npm
+npm run seed:demo
+```
+
+Start the authentication server:
+
+```npm
+npm run dev
+```
+
+The auth server runs at:
+
+`http://localhost:3005`
+
+Health check:
+
+`http://localhost:3005/api/health`
+
+## Run the frontend
 
 ```bash
 cd frontend
 npm install
+cp .env.example .env
 npm run dev
 ```
 
-Production build:
+The Vite app normally runs at:
+
+`http://localhost:5173`
+
+The frontend calls Better Auth at `VITE_AUTH_URL`.
+
+## Password reset flow
+
+1. Click **Forgot password?** on the login page.
+2. The demo email `manikantakambala12@gmail.com` is prefilled.
+3. Click **Send OTP**.
+4. Better Auth generates a one-time password and sends it through the configured SMTP provider.
+5. Enter the 6-digit OTP.
+6. Enter a new password with at least 8 characters.
+7. Better Auth verifies the OTP and changes the password.
+
+The Email OTP plugin officially supports the `forget-password` flow through `requestPasswordReset()` and `resetPassword()`. citeturn4search0
+
+## Email delivery requirement
+
+The application code is configured to send the OTP, but an actual SMTP account is required before an email can leave the server. Better Auth delegates email delivery to the application's configured email provider. citeturn3search10turn4search3
+
+Do **not** put the demo password, SMTP password, or Better Auth secret into Git.
+
+## Frontend build
 
 ```bash
 cd frontend
 npm run build
 ```
-
-## Backend — next phase
-
-Backend development will live under `backend/` and will be started after the login UI is accepted. The planned stack is Node.js + Better Auth + PostgreSQL.
-
-Keeping these concerns separate allows frontend work and backend authentication development to evolve independently.
-
-## Design QA
-
-The login UI was reviewed across desktop, tablet, tablet-portrait, mobile, and small-mobile breakpoints. The project also includes the standalone warehouse background asset at:
-
-`frontend/public/images/Girder-login-background.png` (primary) with `login-warehouse-bg.svg` as a local fallback
