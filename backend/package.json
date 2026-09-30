@@ -1,20 +1,23 @@
 {
   "name": "primebiller-backend",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "module",
   "scripts": {
     "dev": "node --watch server.js",
     "start": "node server.js",
+    "db:schema": "node scripts/apply-schema.js",
+    "db:migrate": "npx @better-auth/cli@latest migrate --config ./auth.js -y",
     "seed:demo": "node seed-demo.js",
-    "db:migrate": "npx auth@latest migrate --config ./auth.js"
+    "seed:data": "node seed-data.js",
+    "setup": "npm run db:schema && npm run db:migrate && npm run seed:demo && npm run seed:data"
   },
   "dependencies": {
     "better-auth": "latest",
     "cors": "latest",
     "dotenv": "latest",
     "express": "^5.1.0",
-    "nodemailer": "latest",
-    "pg": "latest"
+    "mysql2": "latest",
+    "nodemailer": "latest"
   }
 }
