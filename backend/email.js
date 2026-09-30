@@ -18,9 +18,9 @@ const transporter = smtpHost
 
 export async function sendOtpEmail({ email, otp, type }) {
   if (!transporter) {
-    throw new Error(
-      "SMTP is not configured. Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD and SMTP_FROM before requesting an email OTP."
-    );
+    // No SMTP yet (dummy-login phase): print the OTP so the reset flow is testable.
+    console.log(`[dev] ${type} OTP for ${email}: ${otp}`);
+    return;
   }
 
   const purpose =

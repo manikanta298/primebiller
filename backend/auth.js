@@ -1,16 +1,14 @@
 import "dotenv/config";
-import pg from "pg";
+import { createPool } from "mysql2/promise";
 import { betterAuth } from "better-auth";
 import { emailOTP } from "better-auth/plugins";
 import { sendOtpEmail } from "./email.js";
-
-const { Pool } = pg;
 
 const databaseUrl = process.env.DATABASE_URL;
 
 if (!databaseUrl) {
   throw new Error(
-    "DATABASE_URL is missing. Set the Supabase PostgreSQL connection string in Render environment variables."
+    "DATABASE_URL is missing. Set the MySQL connection string, e.g. mysql://user:pass@localhost:3306/girder"
   );
 }
 
@@ -27,9 +25,7 @@ const trustedOrigins = [
   process.env.FRONTEND_URL || "http://localhost:5173",
 ];
 
-const database = new Pool({
-  connectionString: databaseUrl,
-});
+const database = createPool(databaseUrl);
 
 export const auth = betterAuth({
   appName: "Girder",
