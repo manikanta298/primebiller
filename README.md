@@ -35,7 +35,7 @@ cd ../frontend && npm install && cp .env.example .env && npm run dev   # UI on :
 
 ## Dummy logins (until a real email ID is provided)
 `owner@girder.test` and `manikantakambala12@gmail.com`, both with `DUMMY_PASSWORD` from `backend/.env` (default `Girder@12345`).
-With `SMTP_HOST` empty, password-reset OTPs print in the API console.
+With `SMTP_HOST` empty, password-reset OTPs print in the API console. For real email, set the Google SMTP values in `backend/.env` (see `.env.example`) using a Google App Password, then restart the API. Gmail allows ~500 emails/day.
 
 ## Build status
 | Screen | Status |
