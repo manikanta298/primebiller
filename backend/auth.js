@@ -22,7 +22,7 @@ if (!betterAuthSecret || betterAuthSecret.length < 32) {
 }
 
 const trustedOrigins = [
-  process.env.FRONTEND_URL || "http://localhost:5173",
+  process.env.FRONTEND_URL || "https://frontend-phi-swart-46.vercel.app/",
 ];
 
 const database = createPool(databaseUrl);
