@@ -1,6 +1,6 @@
--- Girder inventory & billing — MySQL 8.0.16+ (CHECK constraints enforced)
-CREATE DATABASE IF NOT EXISTS girder CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE girder;
+-- PrimeBiller inventory & billing schema.
+-- The target database is selected from DATABASE_URL by apply-schema.js.
+-- Do not hard-code a database name here.
 
 CREATE TABLE organizations (
   id INT AUTO_INCREMENT PRIMARY KEY,
