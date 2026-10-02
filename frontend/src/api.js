@@ -1,4 +1,4 @@
-const base = import.meta.env.VITE_AUTH_URL || 'http://localhost:3005';
+const base = import.meta.env.VITE_AUTH_URL || 'https://primebiller.onrender.com';
 export const api = async (path, opts = {}) => {
   const r = await fetch(`${base}/api${path}`, { credentials: 'include', ...opts });
   if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || r.statusText);
