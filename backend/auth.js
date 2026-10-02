@@ -22,10 +22,26 @@ if (!betterAuthSecret || betterAuthSecret.length < 32) {
 }
 
 const trustedOrigins = [
-  process.env.FRONTEND_URL || "https://frontend-phi-swart-46.vercel.app/",
+  process.env.FRONTEND_URL || "https://frontend-phi-swart-46.vercel.app",
 ];
 
-const database = createPool(databaseUrl);
+const dbUrl = new URL(databaseUrl);
+const sslMode = (dbUrl.searchParams.get("ssl-mode") || "").toLowerCase();
+dbUrl.searchParams.delete("ssl-mode");
+
+const poolOptions = {
+  uri: dbUrl.toString(),
+  waitForConnections: true,
+  connectionLimit: 10,
+};
+
+if (sslMode === "required" || sslMode === "verify-ca" || sslMode === "verify-full") {
+  poolOptions.ssl = {
+    rejectUnauthorized: sslMode !== "required",
+  };
+}
+
+const database = createPool(poolOptions);
 
 export const auth = betterAuth({
   appName: "Girder",
