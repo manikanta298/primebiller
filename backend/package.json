@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "node --watch server.js",
-    "start": "node server.js",
+    "start": "npm run db:migrate && node server.js",
     "db:schema": "node scripts/apply-schema.js",
-    "db:migrate": "npx @better-auth/cli@latest migrate --config ./auth.js -y",
+    "db:migrate": "npx auth@latest migrate --config ./auth.js --yes",
     "seed:demo": "node seed-demo.js",
     "seed:data": "node seed-data.js",
     "setup": "npm run db:schema && npm run db:migrate && npm run seed:demo && npm run seed:data"
