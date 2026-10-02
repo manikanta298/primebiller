@@ -17,6 +17,7 @@ const options = {
   port: Number(u.port || 3306),
   user: decodeURIComponent(u.username),
   password: decodeURIComponent(u.password),
+  database: decodeURIComponent(u.pathname.replace(/^\//, "")),
   multipleStatements: true,
 };
 
