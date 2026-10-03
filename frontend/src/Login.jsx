@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { authClient } from './auth-client';
+import { auth } from './auth';
 import './styles.css';
 
 const features = [
@@ -75,21 +75,15 @@ export default function Login({ onSignedIn }) {
     setAuthError('');
     setIsSigningIn(true);
 
-    const { error } = await authClient.signIn.email({
-      email,
-      password,
-      rememberMe: remember,
-    });
-
-    setIsSigningIn(false);
-
-    if (error) {
+    try {
+      const session = await auth.signIn({ email, password, rememberMe: remember });
+      setAuthMessage('Signed in successfully.');
+      onSignedIn?.(session);
+    } catch (error) {
       setAuthError(error.message || 'Unable to sign in. Please check your email and password.');
-      return;
+    } finally {
+      setIsSigningIn(false);
     }
-
-    setAuthMessage('Signed in successfully.');
-    onSignedIn?.();
   };
 
   const openPasswordReset = () => {
@@ -113,19 +107,15 @@ export default function Login({ onSignedIn }) {
     setResetError('');
     setIsResetting(true);
 
-    const { error } = await authClient.emailOtp.requestPasswordReset({
-      email: resetEmail,
-    });
-
-    setIsResetting(false);
-
-    if (error) {
+    try {
+      await auth.requestPasswordReset(resetEmail);
+      setResetStep('otp');
+      setResetMessage('A one-time password was sent to your email.');
+    } catch (error) {
       setResetError(error.message || 'Unable to send the reset OTP.');
-      return;
+    } finally {
+      setIsResetting(false);
     }
-
-    setResetStep('otp');
-    setResetMessage('A one-time password was sent to your email.');
   };
 
   const confirmPasswordReset = async (event) => {
@@ -134,22 +124,20 @@ export default function Login({ onSignedIn }) {
     setResetError('');
     setIsResetting(true);
 
-    const { error } = await authClient.emailOtp.resetPassword({
-      email: resetEmail,
-      otp: resetOtp,
-      password: newPassword,
-    });
-
-    setIsResetting(false);
-
-    if (error) {
+    try {
+      await auth.resetPassword({
+        email: resetEmail,
+        otp: resetOtp,
+        password: newPassword,
+      });
+      setResetStep('success');
+      setResetMessage('Password reset successfully. You can now sign in.');
+      setPassword('');
+    } catch (error) {
       setResetError(error.message || 'Invalid or expired OTP.');
-      return;
+    } finally {
+      setIsResetting(false);
     }
-
-    setResetStep('success');
-    setResetMessage('Password reset successfully. You can now sign in.');
-    setPassword('');
   };
 
   return (
