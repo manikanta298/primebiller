@@ -50,6 +50,17 @@ export const auth = betterAuth({
   secret: betterAuthSecret,
   trustedOrigins,
 
+  rateLimit: {
+    storage: "database",
+    modelName: "rateLimit",
+  },
+
+  advanced: {
+    ipAddress: {
+      ipAddressHeaders: ["x-forwarded-for"],
+    },
+  },
+
   emailAndPassword: {
     enabled: true,
     autoSignIn: true,
