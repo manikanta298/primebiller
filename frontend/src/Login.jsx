@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { auth } from './auth';
 import './styles.css';
 
@@ -69,6 +69,54 @@ export default function Login({ onSignedIn }) {
   const [resetError, setResetError] = useState('');
   const [isResetting, setIsResetting] = useState(false);
 
+  const dialogRef = useRef(null);
+  const resetEmailRef = useRef(null);
+  const resetOtpRef = useRef(null);
+  const newPasswordRef = useRef(null);
+  const successButtonRef = useRef(null);
+  const forgotLinkRef = useRef(null);
+  const promoRef = useRef(null);
+  const formPanelRef = useRef(null);
+
+  // Hide everything behind the dialog from assistive tech and the tab order while it is open.
+  useEffect(() => {
+    const panels = [promoRef.current, formPanelRef.current].filter(Boolean);
+    panels.forEach((el) => (resetOpen ? el.setAttribute('inert', '') : el.removeAttribute('inert')));
+    return () => panels.forEach((el) => el.removeAttribute('inert'));
+  }, [resetOpen]);
+
+  // Move keyboard / screen-reader focus into the dialog, and to the right control whenever the step changes.
+  // Without this the focused button is unmounted on a step change and focus drops to <body>.
+  useEffect(() => {
+    if (!resetOpen) return undefined;
+    const target =
+      resetStep === 'otp' ? resetOtpRef.current : resetStep === 'success' ? successButtonRef.current : resetEmailRef.current;
+    const frame = requestAnimationFrame(() => target?.focus());
+    return () => cancelAnimationFrame(frame);
+  }, [resetOpen, resetStep]);
+
+  const handleDialogKeyDown = (event) => {
+    if (event.key === 'Escape') {
+      event.stopPropagation();
+      closePasswordReset();
+      return;
+    }
+    if (event.key !== 'Tab') return;
+    const focusable = dialogRef.current?.querySelectorAll(
+      'button:not([disabled]), input:not([disabled]), [href], select, textarea, [tabindex]:not([tabindex="-1"])',
+    );
+    if (!focusable?.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     setAuthMessage('');
@@ -78,6 +126,7 @@ export default function Login({ onSignedIn }) {
     try {
       const session = await auth.signIn({ email, password, rememberMe: remember });
       setAuthMessage('Signed in successfully.');
+      if (!location.hash || location.hash === '#') location.hash = '#/dashboard';
       onSignedIn?.(session);
     } catch (error) {
       setAuthError(error.message || 'Unable to sign in. Please check your email and password.');
@@ -99,6 +148,7 @@ export default function Login({ onSignedIn }) {
   const closePasswordReset = () => {
     if (isResetting) return;
     setResetOpen(false);
+    requestAnimationFrame(() => forgotLinkRef.current?.focus());
   };
 
   const requestPasswordReset = async (event) => {
@@ -122,19 +172,44 @@ export default function Login({ onSignedIn }) {
     event.preventDefault();
     setResetMessage('');
     setResetError('');
+
+    if (!/^\d{6}$/.test(resetOtp)) {
+      setResetError('Enter the 6-digit code from your email.');
+      resetOtpRef.current?.focus();
+      return;
+    }
+    if (newPassword.length < 8) {
+      setResetError('New password must be at least 8 characters.');
+      newPasswordRef.current?.focus();
+      return;
+    }
+
     setIsResetting(true);
 
     try {
-      await auth.resetPassword({
+      const data = await auth.resetPassword({
         email: resetEmail,
         otp: resetOtp,
         password: newPassword,
       });
+      setPassword('');
+      setNewPassword('');
+      setResetOtp('');
+
+      if (data?.session) {
+        // The server signed the user in with a fresh session: hand it to the app and go to the dashboard.
+        setResetOpen(false);
+        location.hash = '#/dashboard';
+        onSignedIn?.(data.session);
+        return;
+      }
+
+      // Fallback if the server did not return a session.
       setResetStep('success');
       setResetMessage('Password reset successfully. You can now sign in.');
-      setPassword('');
     } catch (error) {
       setResetError(error.message || 'Invalid or expired OTP.');
+      resetOtpRef.current?.focus();
     } finally {
       setIsResetting(false);
     }
@@ -142,7 +217,7 @@ export default function Login({ onSignedIn }) {
 
   return (
     <main className="login-page">
-      <section className="promo-panel" aria-label="Girder product introduction">
+      <section ref={promoRef} className="promo-panel" aria-label="Girder product introduction">
         <div className="promo-overlay" />
         <div className="promo-content">
           <Logo />
@@ -165,7 +240,7 @@ export default function Login({ onSignedIn }) {
         </div>
       </section>
 
-      <section className="form-panel" aria-label="Sign in">
+      <section ref={formPanelRef} className="form-panel" aria-label="Sign in">
         <div className="top-action">
           <span>New to Girder?</span>
           <button type="button" className="contact-button">Contact us</button>
@@ -185,7 +260,7 @@ export default function Login({ onSignedIn }) {
 
             <div className="password-label-row">
               <label htmlFor="password">Password</label>
-              <button type="button" className="forgot-link" onClick={openPasswordReset}>Forgot password?</button>
+              <button type="button" ref={forgotLinkRef} className="forgot-link" onClick={openPasswordReset}>Forgot password?</button>
             </div>
             <div className="input-wrap">
               <LockIcon />
@@ -204,11 +279,8 @@ export default function Login({ onSignedIn }) {
             <button type="submit" className="primary-button" disabled={isSigningIn}>
               {isSigningIn ? 'Signing in…' : 'Sign in'} <span aria-hidden="true">→</span>
             </button>
-            {(authMessage || authError) && (
-              <p className={authError ? 'auth-feedback error' : 'auth-feedback success'} role="status">
-                {authError || authMessage}
-              </p>
-            )}
+            <div role="alert">{authError && <p className="auth-feedback error">{authError}</p>}</div>
+            <div role="status" aria-live="polite">{authMessage && !authError && <p className="auth-feedback success">{authMessage}</p>}</div>
           </form>
 
           <div className="or-divider"><span>OR</span></div>
@@ -224,32 +296,36 @@ export default function Login({ onSignedIn }) {
       {resetOpen && (
         <div className="reset-modal-backdrop" role="presentation" onMouseDown={closePasswordReset}>
           <section
+            ref={dialogRef}
             className="reset-modal"
             role="dialog"
             aria-modal="true"
             aria-labelledby="reset-title"
+            aria-describedby="reset-copy"
             onMouseDown={(event) => event.stopPropagation()}
+            onKeyDown={handleDialogKeyDown}
           >
             <button type="button" className="reset-close" onClick={closePasswordReset} aria-label="Close password reset">
-              ×
+              <span aria-hidden="true">×</span>
             </button>
 
             {resetStep === 'request' && (
               <>
                 <p className="eyebrow">ACCOUNT RECOVERY</p>
                 <h3 id="reset-title">Reset your password</h3>
-                <p className="reset-copy">We’ll send a one-time password to your registered email address.</p>
+                <p id="reset-copy" className="reset-copy">We’ll send a one-time password to your registered email address.</p>
                 <form onSubmit={requestPasswordReset}>
                   <label htmlFor="reset-email">Email address</label>
                   <input
                     id="reset-email"
+                    ref={resetEmailRef}
                     type="email"
                     autoComplete="email"
                     value={resetEmail}
                     onChange={(event) => setResetEmail(event.target.value)}
                     required
                   />
-                  <button className="reset-primary" type="submit" disabled={isResetting}>
+                  <button className="reset-primary" type="submit" disabled={isResetting} aria-busy={isResetting}>
                     {isResetting ? 'Sending OTP…' : 'Send OTP'}
                   </button>
                 </form>
@@ -260,24 +336,31 @@ export default function Login({ onSignedIn }) {
               <>
                 <p className="eyebrow">VERIFY OTP</p>
                 <h3 id="reset-title">Enter your OTP</h3>
-                <p className="reset-copy">
-                  Enter the 6-digit code sent to <strong>{resetEmail}</strong>.
+                <p id="reset-copy" className="reset-copy">
+                  Enter the 6-digit code sent to <strong>{resetEmail}</strong>. The code expires in 5 minutes.
                 </p>
                 <form onSubmit={confirmPasswordReset}>
                   <label htmlFor="reset-otp">One-time password</label>
                   <input
                     id="reset-otp"
+                    ref={resetOtpRef}
+                    type="text"
                     inputMode="numeric"
                     autoComplete="one-time-code"
                     maxLength={6}
                     pattern="[0-9]{6}"
+                    aria-describedby="reset-otp-hint"
+                    aria-invalid={Boolean(resetError) && !/^\d{6}$/.test(resetOtp) ? 'true' : undefined}
                     value={resetOtp}
                     onChange={(event) => setResetOtp(event.target.value.replace(/\D/g, '').slice(0, 6))}
                     required
                   />
+                  <span id="reset-otp-hint" className="reset-hint">6 digits, numbers only.</span>
                   <label htmlFor="new-password">New password</label>
                   <input
                     id="new-password"
+                    ref={newPasswordRef}
+                    aria-describedby="new-password-hint"
                     type="password"
                     autoComplete="new-password"
                     minLength={8}
@@ -285,7 +368,8 @@ export default function Login({ onSignedIn }) {
                     onChange={(event) => setNewPassword(event.target.value)}
                     required
                   />
-                  <button className="reset-primary" type="submit" disabled={isResetting}>
+                  <span id="new-password-hint" className="reset-hint">At least 8 characters.</span>
+                  <button className="reset-primary" type="submit" disabled={isResetting} aria-busy={isResetting}>
                     {isResetting ? 'Resetting…' : 'Reset password'}
                   </button>
                 </form>
@@ -296,13 +380,15 @@ export default function Login({ onSignedIn }) {
               <>
                 <p className="eyebrow">PASSWORD UPDATED</p>
                 <h3 id="reset-title">You’re all set</h3>
-                <p className="reset-copy">Your password has been reset successfully.</p>
+                <p id="reset-copy" className="reset-copy">Your password has been reset successfully.</p>
                 <button
                   type="button"
+                  ref={successButtonRef}
                   className="reset-primary"
                   onClick={() => {
                     setResetOpen(false);
                     setResetStep('request');
+                    requestAnimationFrame(() => document.getElementById('password')?.focus());
                   }}
                 >
                   Back to sign in
@@ -310,11 +396,8 @@ export default function Login({ onSignedIn }) {
               </>
             )}
 
-            {(resetMessage || resetError) && (
-              <p className={resetError ? 'auth-feedback error' : 'auth-feedback success'} role="status">
-                {resetError || resetMessage}
-              </p>
-            )}
+            <div role="alert">{resetError && <p className="auth-feedback error">{resetError}</p>}</div>
+            <div role="status" aria-live="polite">{resetMessage && !resetError && <p className="auth-feedback success">{resetMessage}</p>}</div>
           </section>
         </div>
       )}

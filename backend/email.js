@@ -1,9 +1,22 @@
 import dns from "node:dns";
 import nodemailer from "nodemailer";
 
-// Render environments can prefer Gmail IPv6 addresses even when IPv6 egress is unavailable.
-// Prefer IPv4 so SMTP connections use Gmail A records when IPv4 egress is available.
+// Prefer IPv4 so SMTP connections work where IPv6 egress is unavailable.
 dns.setDefaultResultOrder("ipv4first");
+
+/*
+ * Delivery order:
+ *   1. HTTPS email API (BREVO_API_KEY or RESEND_API_KEY) - works on Render free tier,
+ *      because it uses port 443. Render free web services block SMTP ports 25/465/587.
+ *   2. SMTP via nodemailer (SMTP_HOST) - works on paid Render instances / local dev.
+ *   3. Console only - when nothing is configured.
+ *
+ * LOG_OTP=true additionally prints the OTP to the server log. Debugging only: it is
+ * ignored when NODE_ENV=production unless LOG_OTP_IN_PRODUCTION=true is also set.
+ */
+
+const brevoKey = String(process.env.BREVO_API_KEY || "").trim();
+const resendKey = String(process.env.RESEND_API_KEY || "").trim();
 
 const smtpHost = String(process.env.SMTP_HOST || "").trim();
 const smtpUser = String(process.env.SMTP_USER || "").trim();
@@ -12,19 +25,25 @@ const smtpPort = Number(process.env.SMTP_PORT || 587);
 const smtpSecure = String(process.env.SMTP_SECURE || "false").toLowerCase() === "true";
 const smtpFrom = String(process.env.SMTP_FROM || "").trim() || smtpUser;
 
-const transporter = smtpHost
-  ? nodemailer.createTransport({
-      host: smtpHost,
-      port: smtpPort,
-      secure: smtpSecure,
-      auth: smtpUser
-        ? {
-            user: smtpUser,
-            pass: smtpPassword,
-          }
-        : undefined,
-    })
-  : null;
+// MAIL_FROM: "PrimeBiller <no-reply@yourdomain.com>" (sender must be verified with the provider).
+const mailFrom = String(process.env.MAIL_FROM || "").trim() || smtpFrom;
+
+const provider = brevoKey ? "brevo" : resendKey ? "resend" : smtpHost ? "smtp" : "none";
+
+const transporter =
+  provider === "smtp"
+    ? nodemailer.createTransport({
+        host: smtpHost,
+        port: smtpPort,
+        secure: smtpSecure,
+        connectionTimeout: 10_000,
+        greetingTimeout: 10_000,
+        socketTimeout: 15_000,
+        auth: smtpUser ? { user: smtpUser, pass: smtpPassword } : undefined,
+      })
+    : null;
+
+console.log(`Email provider: ${provider}`);
 
 if (transporter) {
   transporter
@@ -35,55 +54,142 @@ if (transporter) {
       );
     })
     .catch((error) => {
-      console.error("SMTP connection verification failed:", error.message);
+      console.error(
+        `SMTP connection verification failed: ${error.message}. ` +
+          "If this is a free Render web service, outbound SMTP (25/465/587) is blocked - " +
+          "set BREVO_API_KEY or RESEND_API_KEY to send over HTTPS instead.",
+      );
     });
-} else {
-  console.warn("SMTP is not configured: SMTP_HOST is missing. OTP emails will only be logged in development.");
+} else if (provider === "none") {
+  console.warn("No email provider configured (BREVO_API_KEY / RESEND_API_KEY / SMTP_HOST). OTPs will only be logged.");
 }
 
+const purposeFor = (type) =>
+  type === "forget-password" ? "password reset" : type === "email-verification" ? "email verification" : "sign in";
+
+const escapeHtml = (value) =>
+  String(value).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
+const buildContent = ({ otp, purpose }) => ({
+  subject: `PrimeBiller ${purpose} OTP`,
+  text: [
+    `Your PrimeBiller ${purpose} OTP is: ${otp}`,
+    "",
+    "This code expires in 5 minutes.",
+    "If you did not request this code, you can safely ignore this email.",
+  ].join("\n"),
+  html: `
+    <div style="font-family:Arial,sans-serif;line-height:1.6;color:#172033">
+      <h2>PrimeBiller ${escapeHtml(purpose)}</h2>
+      <p>Your one-time password is:</p>
+      <p style="font-size:30px;font-weight:700;letter-spacing:8px">${escapeHtml(otp)}</p>
+      <p>This code expires in 5 minutes.</p>
+      <p>If you did not request this code, you can safely ignore this email.</p>
+    </div>
+  `,
+});
+
+// "Name <addr@x.com>" or "addr@x.com" -> { name, email }
+const parseFrom = (value) => {
+  const match = String(value || "").match(/^\s*"?([^"<]*?)"?\s*<([^>]+)>\s*$/);
+  return match ? { name: match[1].trim() || undefined, email: match[2].trim() } : { email: String(value || "").trim() };
+};
+
+async function postJson(url, headers, body) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15_000);
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json", ...headers },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    const text = await response.text();
+    let data = null;
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      data = { raw: text };
+    }
+    if (!response.ok) {
+      const error = new Error(data?.message || data?.error?.message || data?.raw || response.statusText);
+      error.responseCode = response.status;
+      error.code = "HTTP_" + response.status;
+      throw error;
+    }
+    return data;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function sendViaBrevo({ email, content }) {
+  const sender = parseFrom(mailFrom);
+  if (!sender.email) throw new Error("MAIL_FROM is required when using Brevo (must be a verified sender).");
+  const data = await postJson(
+    "https://api.brevo.com/v3/smtp/email",
+    { "api-key": brevoKey },
+    {
+      sender,
+      to: [{ email }],
+      subject: content.subject,
+      htmlContent: content.html,
+      textContent: content.text,
+    },
+  );
+  return { messageId: data?.messageId };
+}
+
+async function sendViaResend({ email, content }) {
+  const from = mailFrom || "PrimeBiller <onboarding@resend.dev>";
+  const data = await postJson(
+    "https://api.resend.com/emails",
+    { Authorization: `Bearer ${resendKey}` },
+    { from, to: [email], subject: content.subject, html: content.html, text: content.text },
+  );
+  return { messageId: data?.id };
+}
+
+async function sendViaSmtp({ email, content }) {
+  return transporter.sendMail({
+    from: smtpFrom,
+    to: email,
+    subject: content.subject,
+    text: content.text,
+    html: content.html,
+  });
+}
+
+const shouldLogOtp = () => {
+  if (provider === "none") return true;
+  if (String(process.env.LOG_OTP || "").toLowerCase() !== "true") return false;
+  const inProduction = process.env.NODE_ENV === "production";
+  return !inProduction || String(process.env.LOG_OTP_IN_PRODUCTION || "").toLowerCase() === "true";
+};
+
 export async function sendOtpEmail({ email, otp, type }) {
-  if (!transporter) {
-    // Keep the OTP visible only when SMTP is intentionally not configured.
-    console.log(`[dev] ${type} OTP generated for ${email}: ${otp}`);
-    return;
+  const purpose = purposeFor(type);
+
+  // Logged BEFORE sending so the code is visible even when delivery fails.
+  if (shouldLogOtp()) {
+    console.log(`[otp] ${type} OTP generated for ${email}: ${otp} (provider=${provider})`);
   }
 
-  const purpose =
-    type === "forget-password"
-      ? "password reset"
-      : type === "email-verification"
-        ? "email verification"
-        : "sign in";
+  if (provider === "none") return { skipped: true };
+
+  const content = buildContent({ otp, purpose });
+  const send = provider === "brevo" ? sendViaBrevo : provider === "resend" ? sendViaResend : sendViaSmtp;
 
   try {
-    const info = await transporter.sendMail({
-      from: smtpFrom,
-      to: email,
-      subject: `PrimeBiller ${purpose} OTP`,
-      text: [
-        `Your PrimeBiller ${purpose} OTP is: ${otp}`,
-        "",
-        "This code expires in 5 minutes.",
-        "If you did not request this code, you can safely ignore this email.",
-      ].join("\n"),
-      html: `
-        <div style="font-family:Arial,sans-serif;line-height:1.6;color:#172033">
-          <h2>PrimeBiller ${purpose}</h2>
-          <p>Your one-time password is:</p>
-          <p style="font-size:30px;font-weight:700;letter-spacing:8px">${otp}</p>
-          <p>This code expires in 5 minutes.</p>
-          <p>If you did not request this code, you can safely ignore this email.</p>
-        </div>
-      `,
-    });
-
+    const info = await send({ email, content });
     console.log(
-      `OTP email sent: type=${type} recipient=${email} messageId=${info.messageId || "unknown"}`,
+      `OTP email sent: provider=${provider} type=${type} recipient=${email} messageId=${info?.messageId || "unknown"}`,
     );
     return info;
   } catch (error) {
     console.error(
-      `OTP email send failed: type=${type} recipient=${email} code=${error.code || "unknown"} responseCode=${error.responseCode || "unknown"} message=${error.message}`,
+      `OTP email send failed: provider=${provider} type=${type} recipient=${email} code=${error.code || "unknown"} responseCode=${error.responseCode || "unknown"} message=${error.message}`,
     );
     throw error;
   }

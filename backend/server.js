@@ -78,7 +78,7 @@ app.post("/api/auth/forgot-password", async (req, res) => {
 app.post("/api/auth/reset-password", async (req, res) => {
   try {
     const result = await resetPassword(req, res, req.body || {});
-    res.status(result.ok ? 200 : 400).json(result.ok ? { ok: true } : { error: result.error });
+    res.status(result.ok ? 200 : 400).json(result.ok ? { ok: true, session: result.session } : { error: result.error });
   } catch (error) {
     console.error("Password reset failed:", error);
     res.status(500).json({ error: "Unable to reset password" });

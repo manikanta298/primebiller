@@ -177,24 +177,41 @@ export async function requestPasswordReset(email) {
     [normalizedEmail],
   );
   const expiresAt = new Date(Date.now() + RESET_OTP_TTL_SECONDS * 1000);
-  await pool.query(
+  const [inserted] = await pool.query(
     "INSERT INTO password_reset_otps (email,otp_hash,expires_at,attempts,created_at) VALUES (?, ?, ?, 0, NOW())",
     [normalizedEmail, otpHash, expiresAt],
   );
 
-  await sendOtpEmail({
-    email: normalizedEmail,
-    otp,
-    type: "forget-password",
-  });
+  try {
+    await sendOtpEmail({
+      email: normalizedEmail,
+      otp,
+      type: "forget-password",
+    });
+  } catch (error) {
+    // The code never reached the user, so don't leave a live OTP behind.
+    await pool.query("UPDATE password_reset_otps SET used_at=NOW() WHERE id=?", [inserted.insertId]);
+    throw error;
+  }
 
   return { ok: true };
 }
 
+const publicUser = (user) => ({
+  id: user.id,
+  name: user.name,
+  email: user.email,
+  emailVerified: Boolean(user.email_verified),
+});
+
 export async function resetPassword(req, res, { email, otp, password }) {
   const normalizedEmail = normalizeEmail(email);
+  const otpValue = String(otp ?? "").trim();
   if (String(password || "").length < 8) {
     return { ok: false, error: "Password must be at least 8 characters." };
+  }
+  if (!/^\d{6}$/.test(otpValue)) {
+    return { ok: false, error: "Enter the 6-digit code from your email." };
   }
 
   const [rows] = await pool.query(
@@ -212,7 +229,7 @@ export async function resetPassword(req, res, { email, otp, password }) {
   }
 
   const validOtp = crypto.timingSafeEqual(
-    Buffer.from(hashToken(otp), "hex"),
+    Buffer.from(hashToken(otpValue), "hex"),
     Buffer.from(record.otp_hash, "hex"),
   );
 
@@ -227,10 +244,13 @@ export async function resetPassword(req, res, { email, otp, password }) {
   const passwordHash = await hashPassword(password);
   await pool.query("UPDATE app_users SET password_hash=?,updated_at=NOW() WHERE id=?", [passwordHash, user.id]);
   await pool.query("UPDATE password_reset_otps SET used_at=NOW() WHERE id=?", [record.id]);
+  // Revoke every existing session (they may belong to whoever knew the old password),
+  // then sign the user in with a fresh one so the app can go straight to the dashboard.
   await pool.query("DELETE FROM app_sessions WHERE user_id=?", [user.id]);
-  clearSessionCookie(req, res);
+  const session = await createSession(user.id, true);
+  setSessionCookie(req, res, session.token, session.ttl);
 
-  return { ok: true };
+  return { ok: true, session: { user: publicUser(user) } };
 }
 
 export async function requireSession(req, res, next) {
