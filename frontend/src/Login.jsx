@@ -69,6 +69,34 @@ export default function Login({ onSignedIn }) {
   const [resetError, setResetError] = useState('');
   const [isResetting, setIsResetting] = useState(false);
 
+  // Dev/test bypass: the panel only renders when the API reports it is enabled.
+  const [devEnabled, setDevEnabled] = useState(false);
+  const [devKey, setDevKey] = useState('');
+  const [devError, setDevError] = useState('');
+  const [isDevSigningIn, setIsDevSigningIn] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    auth.devBypassStatus().then((d) => { if (mounted) setDevEnabled(Boolean(d?.enabled)); }).catch(() => {});
+    return () => { mounted = false; };
+  }, []);
+
+  const handleDevSignIn = async (event) => {
+    event.preventDefault();
+    setDevError('');
+    setIsDevSigningIn(true);
+    try {
+      const session = await auth.devSignIn(devKey);
+      setDevKey('');
+      location.hash = '#/dashboard';
+      onSignedIn?.(session);
+    } catch (error) {
+      setDevError(error.message || 'Unable to sign in with the dev key.');
+    } finally {
+      setIsDevSigningIn(false);
+    }
+  };
+
   const dialogRef = useRef(null);
   const resetEmailRef = useRef(null);
   const resetOtpRef = useRef(null);
@@ -285,6 +313,19 @@ export default function Login({ onSignedIn }) {
 
           <div className="or-divider"><span>OR</span></div>
           <button type="button" className="google-button"><GoogleIcon /> <span>Continue with Google</span></button>
+
+          {devEnabled && (
+            <form className="dev-bypass" onSubmit={handleDevSignIn} aria-labelledby="dev-bypass-title">
+              <h3 id="dev-bypass-title">Developer access (testing only)</h3>
+              <p id="dev-bypass-hint" className="reset-hint">Skips email and password. Disable DEV_BYPASS_KEY before going live.</p>
+              <label htmlFor="dev-key">Dev access key</label>
+              <input id="dev-key" type="password" autoComplete="off" value={devKey} onChange={(e) => setDevKey(e.target.value)} aria-describedby="dev-bypass-hint" required />
+              <button type="submit" className="dev-bypass-button" disabled={isDevSigningIn || !devKey} aria-busy={isDevSigningIn}>
+                {isDevSigningIn ? 'Signing in…' : 'Open dashboard'}
+              </button>
+              <div role="alert">{devError && <p className="auth-feedback error">{devError}</p>}</div>
+            </form>
+          )}
         </div>
 
         <div className="legal-row">

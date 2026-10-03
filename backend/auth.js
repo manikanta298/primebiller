@@ -265,3 +265,80 @@ export async function requireSession(req, res, next) {
     res.status(500).json({ error: "Unable to load session" });
   }
 }
+
+/* ------------------------------------------------------------------------------------------
+ * DEV / TEST LOGIN BYPASS  -  REMOVE OR LEAVE DISABLED BEFORE GOING LIVE
+ *
+ * Lets you open the dashboard without email + password while testing.
+ * It is OFF unless DEV_BYPASS_KEY is set (at least 24 characters). There is no default key in code.
+ * When NODE_ENV=production it additionally requires ALLOW_DEV_BYPASS_IN_PRODUCTION=true.
+ * It creates a normal session for a dedicated test user, so every other route behaves as usual.
+ * ---------------------------------------------------------------------------------------- */
+const DEV_USER_EMAIL = "dev-bypass@primebiller.local";
+const DEV_USER_NAME = "Dev Tester";
+const DEV_KEY_MIN_LENGTH = 24;
+const DEV_MAX_ATTEMPTS = 5;
+const DEV_WINDOW_MS = 15 * 60 * 1000;
+const devAttempts = new Map(); // ip -> { count, resetAt }
+
+export const isDevBypassEnabled = () => {
+  const key = String(process.env.DEV_BYPASS_KEY || "");
+  if (key.length < DEV_KEY_MIN_LENGTH) return false;
+  if (process.env.NODE_ENV === "production") {
+    return String(process.env.ALLOW_DEV_BYPASS_IN_PRODUCTION || "").toLowerCase() === "true";
+  }
+  return true;
+};
+
+export const logDevBypassStatus = () => {
+  const key = String(process.env.DEV_BYPASS_KEY || "");
+  if (isDevBypassEnabled()) {
+    console.warn("WARNING: DEV LOGIN BYPASS IS ENABLED. Anyone with DEV_BYPASS_KEY can sign in. Disable it before going live.");
+  } else if (key) {
+    console.warn(
+      key.length < DEV_KEY_MIN_LENGTH
+        ? `DEV_BYPASS_KEY is set but shorter than ${DEV_KEY_MIN_LENGTH} characters; dev bypass stays disabled.`
+        : "DEV_BYPASS_KEY is set but NODE_ENV=production without ALLOW_DEV_BYPASS_IN_PRODUCTION=true; dev bypass stays disabled.",
+    );
+  }
+};
+
+const devRateLimited = (ip) => {
+  const now = Date.now();
+  const entry = devAttempts.get(ip);
+  if (!entry || entry.resetAt <= now) {
+    devAttempts.set(ip, { count: 1, resetAt: now + DEV_WINDOW_MS });
+    return false;
+  }
+  entry.count += 1;
+  return entry.count > DEV_MAX_ATTEMPTS;
+};
+
+export async function devBypassSignIn(req, res, { key }) {
+  if (!isDevBypassEnabled()) return { ok: false, status: 404, error: "Not found" };
+
+  const ip = req.ip || "unknown";
+  if (devRateLimited(ip)) {
+    return { ok: false, status: 429, error: "Too many attempts. Try again in 15 minutes." };
+  }
+
+  // Compare digests so length differences don't leak and the comparison is constant-time.
+  const given = crypto.createHash("sha256").update(String(key || "")).digest();
+  const expected = crypto.createHash("sha256").update(String(process.env.DEV_BYPASS_KEY)).digest();
+  if (!crypto.timingSafeEqual(given, expected)) {
+    return { ok: false, status: 401, error: "Invalid dev key." };
+  }
+  devAttempts.delete(ip);
+
+  let user = await findUserByEmail(DEV_USER_EMAIL);
+  if (!user) {
+    // Random password: this account can only be entered through the bypass key.
+    await createUser({ name: DEV_USER_NAME, email: DEV_USER_EMAIL, password: crypto.randomBytes(32).toString("hex") });
+    user = await findUserByEmail(DEV_USER_EMAIL);
+  }
+
+  const session = await createSession(user.id, false);
+  setSessionCookie(req, res, session.token, session.ttl);
+  console.warn(`Dev bypass sign-in used from ${ip}`);
+  return { ok: true, session: { user: publicUser(user) } };
+}

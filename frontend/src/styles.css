@@ -1415,3 +1415,19 @@ form label,
   outline: 3px solid #176c5d;
   outline-offset: 2px;
 }
+
+.dev-bypass {
+  display: grid;
+  gap: 8px;
+  margin-top: 18px;
+  padding: 14px;
+  border: 1px dashed #b7791f;
+  border-radius: 10px;
+  background: #fffaf0;
+}
+.dev-bypass h3 { margin: 0; font-size: 14px; color: #7b4a0b; }
+.dev-bypass label { font-size: 13px; }
+.dev-bypass input { height: 42px; padding: 0 12px; border: 1px solid #cbd2da; border-radius: 8px; font-size: 14px; }
+.dev-bypass-button { height: 42px; border: 0; border-radius: 8px; background: #7b4a0b; color: #fff; font-weight: 600; cursor: pointer; }
+.dev-bypass-button:disabled { opacity: .6; cursor: not-allowed; }
+.dev-bypass-button:focus-visible, .dev-bypass input:focus-visible { outline: 3px solid #7b4a0b; outline-offset: 2px; }

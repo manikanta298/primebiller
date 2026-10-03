@@ -29,6 +29,12 @@ export const auth = {
       method: "POST",
       body: JSON.stringify({ name, email, password }),
     }),
+  devBypassStatus: () => request("/api/auth/dev-bypass-status"),
+  devSignIn: (key) =>
+    request("/api/auth/dev-bypass", {
+      method: "POST",
+      body: JSON.stringify({ key }),
+    }),
   signOut: () =>
     request("/api/auth/sign-out", {
       method: "POST",
