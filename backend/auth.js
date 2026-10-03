@@ -99,9 +99,10 @@ async function createSession(userId, rememberMe = true) {
   const token = crypto.randomBytes(32).toString("hex");
   const tokenHash = hashToken(token);
   const ttl = rememberMe ? SESSION_TTL_SECONDS : TEMP_SESSION_TTL_SECONDS;
+  const expiresAt = new Date(Date.now() + ttl * 1000);
   await pool.query(
-    "INSERT INTO app_sessions (token_hash,user_id,expires_at,created_at,last_seen_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL ? SECOND), NOW(), NOW())",
-    [tokenHash, userId, ttl],
+    "INSERT INTO app_sessions (token_hash,user_id,expires_at,created_at,last_seen_at) VALUES (?, ?, ?, NOW(), NOW())",
+    [tokenHash, userId, expiresAt],
   );
   return { token, ttl };
 }
@@ -175,9 +176,10 @@ export async function requestPasswordReset(email) {
     "UPDATE password_reset_otps SET used_at=NOW() WHERE email=? AND used_at IS NULL",
     [normalizedEmail],
   );
+  const expiresAt = new Date(Date.now() + RESET_OTP_TTL_SECONDS * 1000);
   await pool.query(
-    "INSERT INTO password_reset_otps (email,otp_hash,expires_at,attempts,created_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL ? SECOND), 0, NOW())",
-    [normalizedEmail, otpHash, RESET_OTP_TTL_SECONDS],
+    "INSERT INTO password_reset_otps (email,otp_hash,expires_at,attempts,created_at) VALUES (?, ?, ?, 0, NOW())",
+    [normalizedEmail, otpHash, expiresAt],
   );
 
   await sendOtpEmail({
