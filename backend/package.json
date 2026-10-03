@@ -13,7 +13,6 @@
     "setup": "npm run db:schema && npm run db:migrate && npm run seed:demo && npm run seed:data"
   },
   "dependencies": {
-    "better-auth": "latest",
     "cors": "latest",
     "dotenv": "latest",
     "express": "^5.1.0",
