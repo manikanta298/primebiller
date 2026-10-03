@@ -5,6 +5,7 @@ import { getSession, requireSession, signIn, signOut, requestPasswordReset, rese
 import api from "./routes/api.js";
 
 const app = express();
+app.set("trust proxy", 1);
 const port = Number(process.env.PORT || 3005);
 const frontendOrigin = process.env.FRONTEND_URL || "http://localhost:5173";
 
