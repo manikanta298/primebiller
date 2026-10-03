@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "node --watch server.js",
-    "start": "node server.js",
+    "start": "npm run db:migrate && node server.js",
     "db:schema": "node scripts/apply-schema.js",
     "db:migrate": "node scripts/migrate-auth.js",
     "seed:demo": "node seed-demo.js",
