@@ -1,7 +1,15 @@
 # PrimeBiller Backend
 
-Backend development will be added here in the next phase.
+Node.js + Express API with first-party MySQL-backed authentication.
 
-Planned scope: Node.js API, Better Auth, PostgreSQL, sessions, authorization, and business APIs.
+## Authentication
 
-No backend authentication implementation is included in the current login UI phase.
+The project does not use Better Auth. Authentication uses app_users for email/password accounts, app_sessions for secure HTTP-only sessions, and password_reset_otps for email OTP password recovery.
+
+Password recovery continues to use the existing Nodemailer SMTP transporter in backend/email.js.
+
+## Local setup
+
+Run npm install, npm run db:schema, npm run db:migrate, npm run seed:demo, then npm start.
+
+Configure DATABASE_URL, FRONTEND_URL, DEMO_EMAIL, DUMMY_PASSWORD, and the existing SMTP_* variables in .env.
