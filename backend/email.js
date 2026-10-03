@@ -1,4 +1,9 @@
+import dns from "node:dns";
 import nodemailer from "nodemailer";
+
+// Render environments can prefer Gmail IPv6 addresses even when IPv6 egress is unavailable.
+// Prefer IPv4 so SMTP connections use Gmail A records when IPv4 egress is available.
+dns.setDefaultResultOrder("ipv4first");
 
 const smtpHost = String(process.env.SMTP_HOST || "").trim();
 const smtpUser = String(process.env.SMTP_USER || "").trim();
