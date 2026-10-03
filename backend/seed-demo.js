@@ -1,23 +1,20 @@
 import "dotenv/config";
-import { auth } from "./auth.js";
+import { createUser } from "./auth.js";
 
-// Creates the dummy logins, or RESETS their password to DUMMY_PASSWORD if they already exist.
-// Safe to re-run. Run it with the same DATABASE_URL that Render uses (the Aiven one).
-const password = process.env.DUMMY_PASSWORD || "Girder@12345";
+const password = process.env.DUMMY_PASSWORD;
+if (!password || password.length < 8) {
+  throw new Error("Set DUMMY_PASSWORD (at least 8 characters) before running npm run seed:demo.");
+}
+
+const demoEmail = process.env.DEMO_EMAIL || "manikantakambala12@gmail.com";
 const users = [
   { name: "Harish K.", email: "owner@girder.test" },
-  { name: "Manikanta Kambala", email: process.env.DEMO_EMAIL || "manikantakambala12@gmail.com" },
+  { name: "Manikanta Kambala", email: demoEmail },
 ];
 
-const ctx = await auth.$context;
-for (const u of users) {
-  const found = await ctx.internalAdapter.findUserByEmail(u.email.toLowerCase(), { includeAccounts: true });
-  if (found) {
-    await ctx.internalAdapter.updatePassword(found.user.id, await ctx.password.hash(password));
-    console.log("Password reset for existing login:", u.email);
-  } else {
-    await auth.api.signUpEmail({ body: { ...u, password } });
-    console.log("Dummy login created:", u.email);
-  }
+for (const user of users) {
+  const id = await createUser({ ...user, password });
+  console.log(`Demo user ready: ${user.email} (id ${id})`);
 }
+
 process.exit(0);
