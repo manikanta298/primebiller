@@ -1,6 +1,5 @@
 import { Router } from "express";
-import { fromNodeHeaders } from "better-auth/node";
-import { auth } from "../auth.js";
+import { requireSession } from "../auth.js";
 import { q } from "../db.js";
 import sales from "./sales.js";
 import invoicing from "./invoicing.js";
@@ -8,13 +7,8 @@ import fin from "./final.js";
 
 const r = Router();
 
-// All routes below require a Better Auth session.
-r.use(async (req, res, next) => {
-  const session = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) });
-  if (!session) return res.status(401).json({ error: "Not signed in" });
-  req.user = session.user;
-  next();
-});
+// All routes below require a first-party PrimeBiller session.
+r.use(requireSession);
 
 const ORG = 1;
 const wid = (req) => (req.query.godown && req.query.godown !== "all" ? Number(req.query.godown) : null);
