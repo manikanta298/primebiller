@@ -11,8 +11,12 @@ dns.setDefaultResultOrder("ipv4first");
  *   2. SMTP via nodemailer (SMTP_HOST) - works on paid Render instances / local dev.
  *   3. Console only - when nothing is configured.
  *
- * LOG_OTP=true additionally prints the OTP to the server log. Debugging only: it is
- * ignored when NODE_ENV=production unless LOG_OTP_IN_PRODUCTION=true is also set.
+ * TEMPORARY TESTING MODE (for when SMTP is blocked):
+ *   LOG_OTP=true                    print the OTP in the server console
+ *   LOG_OTP_IN_PRODUCTION=true      also required when NODE_ENV=production (e.g. on Render)
+ *   OTP_CONSOLE_ONLY=true           skip sending email entirely (instant, nothing to time out)
+ * While OTP logging is active, an email delivery failure no longer breaks the reset flow:
+ * the OTP stays valid and you read it from the logs. Remove these variables when done.
  */
 
 const brevoKey = String(process.env.BREVO_API_KEY || "").trim();
@@ -30,6 +34,24 @@ const mailFrom = String(process.env.MAIL_FROM || "").trim() || smtpFrom;
 
 const provider = brevoKey ? "brevo" : resendKey ? "resend" : smtpHost ? "smtp" : "none";
 
+const flag = (name) => String(process.env[name] || "").toLowerCase() === "true";
+
+const shouldLogOtp = () => {
+  if (provider === "none") return true;
+  if (!flag("LOG_OTP")) return false;
+  return process.env.NODE_ENV !== "production" || flag("LOG_OTP_IN_PRODUCTION");
+};
+
+// Only skip email when the OTP will actually be visible in the logs; otherwise the code would be lost.
+const isConsoleOnly = () => flag("OTP_CONSOLE_ONLY") && shouldLogOtp();
+
+if (shouldLogOtp() && provider !== "none") {
+  console.warn("WARNING: OTP console logging is ON (testing mode). OTPs are written to the server log. Turn off LOG_OTP before going live.");
+}
+if (flag("OTP_CONSOLE_ONLY") && !isConsoleOnly()) {
+  console.warn("OTP_CONSOLE_ONLY is set but ignored: OTP logging is not permitted (set LOG_OTP=true, and LOG_OTP_IN_PRODUCTION=true when NODE_ENV=production).");
+}
+
 const transporter =
   provider === "smtp"
     ? nodemailer.createTransport({
@@ -45,7 +67,7 @@ const transporter =
 
 console.log(`Email provider: ${provider}`);
 
-if (transporter) {
+if (transporter && !isConsoleOnly()) {
   transporter
     .verify()
     .then(() => {
@@ -161,13 +183,6 @@ async function sendViaSmtp({ email, content }) {
   });
 }
 
-const shouldLogOtp = () => {
-  if (provider === "none") return true;
-  if (String(process.env.LOG_OTP || "").toLowerCase() !== "true") return false;
-  const inProduction = process.env.NODE_ENV === "production";
-  return !inProduction || String(process.env.LOG_OTP_IN_PRODUCTION || "").toLowerCase() === "true";
-};
-
 export async function sendOtpEmail({ email, otp, type }) {
   const purpose = purposeFor(type);
 
@@ -177,6 +192,11 @@ export async function sendOtpEmail({ email, otp, type }) {
   }
 
   if (provider === "none") return { skipped: true };
+
+  if (isConsoleOnly()) {
+    console.log(`[otp] Email skipped (OTP_CONSOLE_ONLY=true). Read the code above and enter it in the app.`);
+    return { skipped: true, consoleOnly: true };
+  }
 
   const content = buildContent({ otp, purpose });
   const send = provider === "brevo" ? sendViaBrevo : provider === "resend" ? sendViaResend : sendViaSmtp;
@@ -191,6 +211,8 @@ export async function sendOtpEmail({ email, otp, type }) {
     console.error(
       `OTP email send failed: provider=${provider} type=${type} recipient=${email} code=${error.code || "unknown"} responseCode=${error.responseCode || "unknown"} message=${error.message}`,
     );
+    // Testing mode: the OTP is in the log, so keep the flow working instead of failing the request.
+    if (shouldLogOtp()) return { delivered: false, loggedOnly: true };
     throw error;
   }
 }
