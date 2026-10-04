@@ -3,6 +3,7 @@ import express from "express";
 import cors from "cors";
 import { getSession, requireSession, signIn, signOut, requestPasswordReset, resetPassword, createUser, isDevBypassEnabled, devBypassSignIn, logDevBypassStatus } from "./auth.js";
 import api from "./routes/api.js";
+import { pool } from "./db.js";
 
 const app = express();
 app.set("trust proxy", 1);
@@ -22,6 +23,19 @@ app.use(express.json());
 
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true, service: "primebiller-api" });
+});
+
+// Unlike /api/health this actually queries MySQL, so it shows whether Render can reach Aiven.
+app.get("/api/health/db", async (_req, res) => {
+  const started = Date.now();
+  try {
+    await pool.query("SELECT 1");
+    const [[{ n }]] = await pool.query("SELECT COUNT(*) n FROM information_schema.tables WHERE table_schema = DATABASE()");
+    res.json({ ok: true, db: "up", tables: n, ms: Date.now() - started });
+  } catch (error) {
+    console.error(`DB health check failed: code=${error.code || "unknown"} message=${error.message}`);
+    res.status(503).json({ ok: false, db: "down", code: error.code || "unknown", ms: Date.now() - started });
+  }
 });
 
 app.get("/api/auth/get-session", async (req, res) => {
@@ -104,6 +118,16 @@ app.get("/api/me", requireSession, (req, res) => {
 });
 
 app.use("/api", api);
+
+// Last resort for any route error: log WHICH request failed and why, and answer with JSON
+// (the default handler returns an HTML page that the frontend cannot read).
+app.use((error, req, res, _next) => {
+  console.error(`[api-error] ${req.method} ${req.originalUrl} -> code=${error.code || "none"} sql=${error.sqlMessage || "-"} message=${error.message}`);
+  if (res.headersSent) return;
+  res.status(error.status || 500).json({ error: error.sqlMessage ? "Database error" : error.message || "Internal server error", code: error.code });
+});
+
+process.on("unhandledRejection", (reason) => console.error("Unhandled promise rejection:", reason));
 
 app.listen(port, "0.0.0.0", () => {
   console.log(`PrimeBiller API server running on port ${port}`);

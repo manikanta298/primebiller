@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { api } from '../api';
+import { api, base } from '../api';
 
 const H = { 'Content-Type': 'application/json' };
 const FIXES = { UOM: 'Map BAGS → BAG', HSN: 'Pad HSN to 4 digits', DUP: 'Keep the first of each duplicate' };
@@ -9,7 +9,16 @@ export default function BulkImport() {
   const [s, setS] = useState(null), [rows, setRows] = useState([]), [only, setOnly] = useState(true), [msg, setMsg] = useState('');
   const load = async (id) => { const sum = await api(id ? `/imports/${id}` : '/imports/current'); setS(sum); if (sum) setRows(await api(`/imports/${sum.job.id}/rows?errorsOnly=${only ? 1 : 0}`)); };
   useEffect(() => { load(s?.job.id); }, [only]);
-  if (!s) return <div className="gd-soon"><h1>Bulk import</h1><label className="gd-btn" style={{ display: 'inline-block' }}>Upload CSV<input type="file" accept=".csv" hidden onChange={async (e) => { const f = e.target.files[0]; if (!f) return; const r = await fetch(`${import.meta.env.VITE_AUTH_URL || 'http://localhost:3005'}/api/imports?filename=${encodeURIComponent(f.name)}`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'text/csv' }, body: await f.text() }); const sum = await r.json(); setS(sum); setRows(await api(`/imports/${sum.job.id}/rows?errorsOnly=1`)); }} /></label><p>Columns: sku, name, uom, hsn, qty, rate, godown</p></div>;
+  if (!s) return <div className="gd-soon"><h1>Bulk import</h1><label className="gd-btn" style={{ display: 'inline-block' }}>Upload CSV<input type="file" accept=".csv" hidden onChange={async (e) => {
+    const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+    try {
+      setMsg(`Uploading ${f.name}…`);
+      const r = await fetch(`${base}/api/imports?filename=${encodeURIComponent(f.name)}`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'text/csv' }, body: await f.text() });
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `Upload failed (${r.status})`);
+      const sum = await r.json(); setS(sum); setMsg('');
+      setRows(await api(`/imports/${sum.job.id}/rows?errorsOnly=1`));
+    } catch (err) { setMsg(err.message || 'Upload failed'); }
+  }} /></label><p>Columns: sku, name, uom, hsn, qty, rate, godown</p><div role="status" aria-live="polite">{msg && <p>{msg}</p>}</div></div>;
   const { job, counts: c, kinds } = s, n = (x) => Number(x || 0).toLocaleString('en-IN');
   const editCell = async (row, field, value) => { try { setS(await api(`/imports/${job.id}/rows/${row}`, { method: 'PATCH', headers: H, body: JSON.stringify({ field, value }) })); setRows(await api(`/imports/${job.id}/rows?errorsOnly=${only ? 1 : 0}`)); setMsg(''); } catch (e) { setMsg(e.message); } };
   const bulk = async (kind) => { setS(await api(`/imports/${job.id}/bulk-fix`, { method: 'POST', headers: H, body: JSON.stringify({ kind }) })); setRows(await api(`/imports/${job.id}/rows?errorsOnly=${only ? 1 : 0}`)); };

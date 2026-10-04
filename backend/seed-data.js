@@ -105,6 +105,8 @@ for (const [st, cnt, tot] of pipe) for (let i = 0; i < cnt; i++) {
 
 // SO/25-26/00042 (draft, Rajesh Constructions) — the sales-order screen; drafts still total 9 / ₹7,12,400
 await ex("UPDATE sales_orders SET total=32620,taxable=32620/1.18,tax=32620-32620/1.18 WHERE status='DRAFT'");
+// The generated list above already uses 00042 (63 orders), so move that one aside first (doc_no is UNIQUE).
+await ex("UPDATE sales_orders SET doc_no='SO/25-26/00064' WHERE doc_no='SO/25-26/00042'");
 const so42 = await ins("UPDATE sales_orders SET doc_no='SO/25-26/00042',order_date='2026-09-22',ship_to='Site 4, Kompally',terms='Net 30',autosaved_at=NOW(),taxable=370000,tax=81440,total=451440 WHERE doc_no='SO/25-26/00009'") ;
 const [{ id: soId }] = await ex("SELECT id FROM sales_orders WHERE doc_no='SO/25-26/00042'");
 let ln = 1;

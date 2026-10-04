@@ -2,7 +2,7 @@ import { Router } from "express";
 import { pool, q } from "../db.js";
 
 const r = Router();
-const ORG = 1;
+import { ORG } from "../org.js";
 const round = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
 
 // Per-rate tax summary for a set of challans (taxable = qty × rate, GST from the item master)
@@ -19,7 +19,7 @@ r.get("/invoicing/context", async (_q, res) => {
   const [party] = await q(`SELECT DISTINCT p.id,p.name,p.gstin FROM challans c JOIN parties p ON p.id=c.party_id WHERE c.status='DELIVERED' AND c.invoice_id IS NULL ORDER BY p.id LIMIT 1`);
   if (!party) return res.json(null);
   const challans = await q(`SELECT c.id,c.doc_no,c.challan_date,c.total,w.name godown,
-      (SELECT COUNT(*) FROM challan_lines WHERE challan_id=c.id) lines, c.pod_signed
+      (SELECT COUNT(*) FROM challan_lines WHERE challan_id=c.id) AS \`lines\`, c.pod_signed
     FROM challans c JOIN warehouses w ON w.id=c.warehouse_id WHERE c.party_id=? AND c.status IN ('DELIVERED','IN_TRANSIT') AND c.invoice_id IS NULL ORDER BY c.challan_date DESC`, [party.id]);
   const advances = await q("SELECT id,doc_no,receipt_date,mode,unadjusted FROM receipts WHERE party_id=? AND unadjusted>0 ORDER BY receipt_date", [party.id]);
   const [{ last_no }] = await q("SELECT last_no FROM doc_counters WHERE org_id=? AND doc_type='INV' AND fy='25-26'", [ORG]);

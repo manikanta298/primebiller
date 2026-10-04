@@ -4,7 +4,7 @@ import { pool, q } from "../db.js";
 import { KINDS, validateRow, parseCsv, suggestUom, inrWords } from "../importer.js";
 
 const r = Router();
-const ORG = 1;
+import { ORG } from "../org.js";
 const round = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
 
 // ---------- Item detail (Batches tab) ----------
@@ -30,7 +30,7 @@ const summary = async (id) => {
   const [job] = await q("SELECT * FROM import_jobs WHERE id=?", [id]); if (!job) return null;
   const [c] = await q(`SELECT COUNT(*) total,SUM(error_kind IS NULL) valid,SUM(error_kind IS NOT NULL) errors,SUM(fixed) fixed,
       SUM(error_kind IS NOT NULL AND fixed=0) remaining FROM import_rows WHERE job_id=?`, [id]);
-  const kinds = await q("SELECT error_kind kind,COUNT(*) rows FROM import_rows WHERE job_id=? AND error_kind IS NOT NULL GROUP BY error_kind ORDER BY rows DESC", [id]);
+  const kinds = await q("SELECT error_kind kind,COUNT(*) AS `rows` FROM import_rows WHERE job_id=? AND error_kind IS NOT NULL GROUP BY error_kind ORDER BY `rows` DESC", [id]);
   return { job, counts: c, kinds: kinds.map((k) => ({ ...k, label: KINDS[k.kind] })) };
 };
 r.get("/imports/current", async (_q, res) => { const [j] = await q("SELECT id FROM import_jobs ORDER BY id DESC LIMIT 1"); res.json(j ? await summary(j.id) : null); });

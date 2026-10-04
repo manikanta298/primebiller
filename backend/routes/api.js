@@ -9,8 +9,9 @@ const r = Router();
 
 // All routes below require a first-party PrimeBiller session.
 r.use(requireSession);
+r.use(orgMiddleware);
 
-const ORG = 1;
+import { ORG, orgMiddleware } from "../org.js";
 const wid = (req) => (req.query.godown && req.query.godown !== "all" ? Number(req.query.godown) : null);
 
 r.get("/warehouses", async (_q, res) => res.json(await q("SELECT id,name,notes FROM warehouses WHERE org_id=?", [ORG])));

@@ -2,7 +2,8 @@ import { Router } from "express";
 import { pool, q } from "../db.js";
 
 const r = Router();
-const ORG = 1, EWB_LIMIT = 50000;
+import { ORG } from "../org.js";
+const EWB_LIMIT = 50000;
 const round = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
 
 export const calcLine = (l) => {
