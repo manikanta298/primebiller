@@ -24,6 +24,16 @@ export const auth = {
       method: "POST",
       body: JSON.stringify({ email, password, rememberMe }),
     }),
+  requestRegistrationOtp: ({ name, email, password }) =>
+    request("/api/auth/register/request-otp", {
+      method: "POST",
+      body: JSON.stringify({ name, email, password }),
+    }),
+  register: ({ name, email, password, otp }) =>
+    request("/api/auth/register", {
+      method: "POST",
+      body: JSON.stringify({ name, email, password, otp }),
+    }),
   signOut: () =>
     request("/api/auth/sign-out", {
       method: "POST",
