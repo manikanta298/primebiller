@@ -251,7 +251,7 @@ export default function Login({ onSignedIn }) {
             <label htmlFor="email">Email address</label>
             <div className="input-wrap">
               <MailIcon />
-              <input id="email" type="email" autoComplete="email" placeholder="you@company.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+              <input id="email" type="email" autoComplete="email" placeholder="you@company.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
             </div>
 
             <div className="password-label-row">
@@ -260,7 +260,7 @@ export default function Login({ onSignedIn }) {
             </div>
             <div className="input-wrap">
               <LockIcon />
-              <input id="password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" placeholder="Enter your password" value={password} onChange={(e) => setPassword(e.target.value)} />
+              <input id="password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" placeholder="Enter your password" value={password} onChange={(e) => setPassword(e.target.value)} required />
               <button type="button" className="password-toggle" aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword((value) => !value)}><EyeIcon hidden={!showPassword} /></button>
             </div>
 
@@ -278,6 +278,7 @@ export default function Login({ onSignedIn }) {
             <div role="alert">{authError && <p className="auth-feedback error">{authError}</p>}</div>
             <div role="status" aria-live="polite">{authMessage && !authError && <p className="auth-feedback success">{authMessage}</p>}</div>
           </form>
+        </div>
 
         <div className="legal-row">
           <div><a href="#privacy">Privacy Policy</a><span>•</span><a href="#terms">Terms of Service</a></div>
