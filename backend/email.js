@@ -31,24 +31,27 @@ const smtpFrom = String(process.env.SMTP_FROM || "").trim() || smtpUser;
 
 // MAIL_FROM: "PrimeBiller <no-reply@yourdomain.com>" (sender must be verified with the provider).
 const mailFrom = String(process.env.MAIL_FROM || "").trim() || smtpFrom;
+const demoEmail = String(process.env.DEMO_EMAIL || "").trim().toLowerCase();
 
 const provider = brevoKey ? "brevo" : resendKey ? "resend" : smtpHost ? "smtp" : "none";
 
 const flag = (name) => String(process.env[name] || "").toLowerCase() === "true";
+const isDummyRecipient = (email) => String(email || "").trim().toLowerCase() === demoEmail && Boolean(demoEmail);
 
-const shouldLogOtp = () => {
+const shouldLogOtp = (email) => {
+  if (isDummyRecipient(email)) return true;
   if (provider === "none") return true;
   if (!flag("LOG_OTP")) return false;
   return process.env.NODE_ENV !== "production" || flag("LOG_OTP_IN_PRODUCTION");
 };
 
 // Only skip email when the OTP will actually be visible in the logs; otherwise the code would be lost.
-const isConsoleOnly = () => flag("OTP_CONSOLE_ONLY") && shouldLogOtp();
+const isConsoleOnly = (email) => flag("OTP_CONSOLE_ONLY") && shouldLogOtp(email);
 
-if (shouldLogOtp() && provider !== "none") {
-  console.warn("WARNING: OTP console logging is ON (testing mode). OTPs are written to the server log. Turn off LOG_OTP before going live.");
+if (flag("LOG_OTP") && provider !== "none") {
+  console.warn("WARNING: OTP console logging is ON (testing mode). OTPs are written to the server log.");
 }
-if (flag("OTP_CONSOLE_ONLY") && !isConsoleOnly()) {
+if (flag("OTP_CONSOLE_ONLY") && !isConsoleOnly(demoEmail)) {
   console.warn("OTP_CONSOLE_ONLY is set but ignored: OTP logging is not permitted (set LOG_OTP=true, and LOG_OTP_IN_PRODUCTION=true when NODE_ENV=production).");
 }
 
@@ -186,14 +189,17 @@ async function sendViaSmtp({ email, content }) {
 export async function sendOtpEmail({ email, otp, type }) {
   const purpose = purposeFor(type);
 
-  // Logged BEFORE sending so the code is visible even when delivery fails.
-  if (shouldLogOtp()) {
+  const logOtp = shouldLogOtp(email);
+
+  // The configured dummy recipient is always logged so the test flow works on Render.
+  // Other recipients follow the LOG_OTP flags above.
+  if (logOtp) {
     console.log(`[otp] ${type} OTP generated for ${email}: ${otp} (provider=${provider})`);
   }
 
   if (provider === "none") return { skipped: true };
 
-  if (isConsoleOnly()) {
+  if (isConsoleOnly(email)) {
     console.log(`[otp] Email skipped (OTP_CONSOLE_ONLY=true). Read the code above and enter it in the app.`);
     return { skipped: true, consoleOnly: true };
   }
@@ -212,7 +218,7 @@ export async function sendOtpEmail({ email, otp, type }) {
       `OTP email send failed: provider=${provider} type=${type} recipient=${email} code=${error.code || "unknown"} responseCode=${error.responseCode || "unknown"} message=${error.message}`,
     );
     // Testing mode: the OTP is in the log, so keep the flow working instead of failing the request.
-    if (shouldLogOtp()) return { delivered: false, loggedOnly: true };
+    if (logOtp) return { delivered: false, loggedOnly: true };
     throw error;
   }
 }
