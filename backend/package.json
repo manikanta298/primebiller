@@ -9,12 +9,16 @@
     "db:schema": "node scripts/apply-schema.js",
     "db:migrate": "node scripts/migrate-auth.js && node scripts/migrate-pending.js",
     "seed:data": "node seed-data.js && node seed-pending-data.js",
-    "setup": "npm run db:schema && npm run db:migrate && npm run seed:data"
+    "setup": "npm run db:schema && npm run db:migrate && npm run seed:data",
+    "test": "node --test"
   },
   "dependencies": {
     "cors": "latest",
     "dotenv": "latest",
     "express": "^5.1.0",
     "mysql2": "latest"
+  },
+  "devDependencies": {
+    "supertest": "latest"
   }
 }
