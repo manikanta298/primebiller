@@ -8,7 +8,7 @@ dns.setDefaultResultOrder("ipv4first");
  * Delivery order:
  *   1. HTTPS email API (BREVO_API_KEY or RESEND_API_KEY) - works on Render free tier,
  *      because it uses port 443. Render free web services block SMTP ports 25/465/587.
- *   2. SMTP via nodemailer (SMTP_HOST) - works on paid Render instances / local dev.
+ *   2. SMTP via nodemailer only when SMTP_ENABLED=true - works on paid Render instances / local dev.
  *   3. Console only - when nothing is configured.
  *
  * TEMPORARY TESTING MODE (for when SMTP is blocked):
@@ -27,13 +27,14 @@ const smtpUser = String(process.env.SMTP_USER || "").trim();
 const smtpPassword = String(process.env.SMTP_PASSWORD || "");
 const smtpPort = Number(process.env.SMTP_PORT || 587);
 const smtpSecure = String(process.env.SMTP_SECURE || "false").toLowerCase() === "true";
+const smtpEnabled = String(process.env.SMTP_ENABLED || "false").toLowerCase() === "true";
 const smtpFrom = String(process.env.SMTP_FROM || "").trim() || smtpUser;
 
 // MAIL_FROM: "PrimeBiller <no-reply@yourdomain.com>" (sender must be verified with the provider).
 const mailFrom = String(process.env.MAIL_FROM || "").trim() || smtpFrom;
 const demoEmail = String(process.env.DEMO_EMAIL || "").trim().toLowerCase();
 
-const provider = brevoKey ? "brevo" : resendKey ? "resend" : smtpHost ? "smtp" : "none";
+const provider = brevoKey ? "brevo" : resendKey ? "resend" : smtpEnabled && smtpHost ? "smtp" : "none";
 
 const flag = (name) => String(process.env[name] || "").toLowerCase() === "true";
 const isDummyRecipient = (email) => String(email || "").trim().toLowerCase() === demoEmail && Boolean(demoEmail);
@@ -68,7 +69,7 @@ const transporter =
       })
     : null;
 
-console.log(`Email provider: ${provider}`);
+console.log(`Email provider: ${provider}${smtpHost && !smtpEnabled ? " (SMTP disabled; set SMTP_ENABLED=true to enable it)" : ""}`);
 
 if (transporter && !isConsoleOnly(demoEmail)) {
   transporter
@@ -86,7 +87,7 @@ if (transporter && !isConsoleOnly(demoEmail)) {
       );
     });
 } else if (provider === "none") {
-  console.warn("No email provider configured (BREVO_API_KEY / RESEND_API_KEY / SMTP_HOST). OTPs will only be logged.");
+  console.warn("No HTTPS email provider configured. OTPs will be logged; SMTP is disabled unless SMTP_ENABLED=true.");
 }
 
 const purposeFor = (type) =>
