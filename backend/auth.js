@@ -6,7 +6,6 @@ const scrypt = promisify(crypto.scrypt);
 const SESSION_COOKIE = "primebiller_session";
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30;
 const TEMP_SESSION_TTL_SECONDS = 60 * 60 * 24;
-const RESET_OTP_TTL_SECONDS = 60 * 5;
 const MAX_RESET_ATTEMPTS = 5;
 
 const normalizeEmail = (email) => String(email || "").trim().toLowerCase();
@@ -108,7 +107,6 @@ async function createSession(userId, rememberMe = true) {
 }
 
 export async function signIn(req, res, { email, password, rememberMe = true }) {
-  const demoEmail = configuredDemoEmail();
   const normalizedEmail = normalizeEmail(email);
 
   const user = await findUserByEmail(normalizedEmail);
@@ -153,6 +151,7 @@ export async function getSession(req) {
       name: rows[0].name,
       email: rows[0].email,
       emailVerified: Boolean(rows[0].email_verified),
+      role: rows[0].role,
     },
   };
 }
