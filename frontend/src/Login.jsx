@@ -220,7 +220,7 @@ export default function Login({ onSignedIn, onRegister }) {
       setResetStep('success');
       setResetMessage('Password reset successfully. You can now sign in.');
     } catch (error) {
-      setResetError(error.message || 'Invalid or expired OTP.');
+      setResetError(error.message || 'Invalid or expired OTP. Check the latest Render log for the current code.');
       resetOtpRef.current?.focus();
     } finally {
       setIsResetting(false);
