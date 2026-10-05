@@ -65,5 +65,28 @@ try {
   if (error.code !== "ER_DUP_FIELDNAME") throw error;
 }
 
+await pool.query("INSERT IGNORE INTO auth_bootstrap (id,master_admin_user_id) VALUES (1,NULL)");
+
+const [[bootstrap]] = await pool.query(
+  "SELECT master_admin_user_id FROM auth_bootstrap WHERE id=1 LIMIT 1",
+);
+
+if (bootstrap.master_admin_user_id === null) {
+  const [[firstUser]] = await pool.query(
+    "SELECT id FROM app_users ORDER BY id ASC LIMIT 1",
+  );
+  if (firstUser?.id) {
+    await pool.query(
+      "UPDATE auth_bootstrap SET master_admin_user_id=? WHERE id=1 AND master_admin_user_id IS NULL",
+      [firstUser.id],
+    );
+    await pool.query(
+      "UPDATE app_users SET role='MASTER_ADMIN' WHERE id=?",
+      [firstUser.id],
+    );
+    console.log(`[auth] Existing first account ${firstUser.id} locked as MASTER_ADMIN.`);
+  }
+}
+
 console.log("PrimeBiller auth schema is up to date: app_users, app_sessions, password_reset_otps.");
 await pool.end();
