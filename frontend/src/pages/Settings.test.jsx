@@ -12,12 +12,14 @@ vi.mock('../api',()=>({
 describe('Settings component',()=>{
   beforeEach(()=>{
     apiMock.mockReset();
-    apiMock.mockResolvedValueOnce({
-      org:{name:'Sri Venkateswara Traders',gstin:'36AABCS1429B1ZQ',state_code:'36',address:'Plot 14'},
+    const payload={
+      org:{name:'Sri Venkateswara Traders',gstin:'36AABCS1429B1ZQ',state_code:'36',address:'Plot 14',eway_threshold:50000},
       warehouses:[{id:1,name:'Balanagar Godown',allow_negative:false,default_uom:'BAG',default_reorder:500,max_stock:3000}],
       counters:[{doc_type:'INV',fy:'25-26',last_no:317}]
-    });
-    apiMock.mockResolvedValue({ok:true});
+    };
+    apiMock.mockImplementation((path)=>path==='/settings'
+      ? Promise.resolve(payload)
+      : Promise.resolve({ok:true}));
   });
 
   it('loads organization controls and saves changes',async()=>{
