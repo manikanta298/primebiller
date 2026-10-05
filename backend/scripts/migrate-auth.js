@@ -24,7 +24,7 @@ const statements = [
   `CREATE TABLE IF NOT EXISTS auth_bootstrap (
     id TINYINT PRIMARY KEY,
     master_admin_user_id INT NULL,
-    CONSTRAINT fk_bootstrap_master_admin FOREIGN KEY (master_admin_user_id) REFERENCES app_users(id) ON DELETE SET NULL
+    CONSTRAINT fk_bootstrap_master_admin FOREIGN KEY (master_admin_user_id) REFERENCES app_users(id) ON DELETE RESTRICT
   )`,
   `CREATE TABLE IF NOT EXISTS auth_otps (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
