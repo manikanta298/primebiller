@@ -13,7 +13,7 @@ export const dateTime = (value) => {
   return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false });
 };
 
-export const Tag = ({ children, tone = 'teal' }) => <span className={`gd-tag t-\${tone}`}>{children}</span>;
+export const Tag = ({ children, tone = 'teal' }) => <span className={`gd-tag t-${tone}`}>{children}</span>;
 
 export const KpiStrip = ({ items }) => (
   <div className="gd-kpis gd-kpis-4">
@@ -31,7 +31,7 @@ export const FilterBar = ({ children }) => <div className="gd-card gd-filterbar"
 
 export const Pager = ({ from, to, total, onPrev, onNext, canPrev, canNext }) => (
   <div className="gd-pager">
-    <span>{total ? `Showing \${from}–\${to} of \${total}` : 'No results'}</span>
+    <span>{total ? `Showing ${from}–${to} of ${total}` : 'No results'}</span>
     <div>
       <button className="gd-btn" disabled={!canPrev} onClick={onPrev}>Previous</button>
       <button className="gd-btn" disabled={!canNext} onClick={onNext}>Next</button>
