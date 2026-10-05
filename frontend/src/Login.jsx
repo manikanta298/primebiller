@@ -306,7 +306,7 @@ export default function Login({ onSignedIn, onRegister }) {
               <>
                 <p className="eyebrow">ACCOUNT RECOVERY</p>
                 <h3 id="reset-title">Reset your password</h3>
-                <p id="reset-copy" className="reset-copy">We’ll send a one-time password to your registered email address.</p>
+                <p id="reset-copy" className="reset-copy">A 6-digit one-time password will be printed in the Render API logs for your registered account.</p>
                 <form onSubmit={requestPasswordReset}>
                   <label htmlFor="reset-email">Email address</label>
                   <input
@@ -330,7 +330,7 @@ export default function Login({ onSignedIn, onRegister }) {
                 <p className="eyebrow">VERIFY OTP</p>
                 <h3 id="reset-title">Enter your OTP</h3>
                 <p id="reset-copy" className="reset-copy">
-                  Enter the 6-digit code sent to <strong>{resetEmail}</strong>. The code expires in 5 minutes.
+                  Enter the 6-digit code printed in the Render API logs for <strong>{resetEmail}</strong>. The code expires in 5 minutes.
                 </p>
                 <form onSubmit={confirmPasswordReset}>
                   <label htmlFor="reset-otp">One-time password</label>
