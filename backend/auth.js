@@ -230,7 +230,7 @@ export async function resetPassword(req, res, { email, otp, password }) {
     return { ok: false, error: "Password must be at least 8 characters." };
   }
   if (!/^\d{6}$/.test(otpValue)) {
-    return { ok: false, error: "Enter the 6-digit code from your email." };
+    return { ok: false, error: "Enter the 6-digit OTP shown in the Render API logs." };
   }
 
   const [rows] = await pool.query(
