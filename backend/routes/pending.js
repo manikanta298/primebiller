@@ -6,14 +6,14 @@ const r = Router();
 const round = (n) => Math.round((Number(n || 0) + Number.EPSILON) * 100) / 100;
 
 const fyWhere = (column) =>
-  `\${column} >= IF(MONTH(CURDATE()) >= 4, MAKEDATE(YEAR(CURDATE()), 91), MAKEDATE(YEAR(CURDATE()) - 1, 91))`;
+  `${column} >= IF(MONTH(CURDATE()) >= 4, MAKEDATE(YEAR(CURDATE()), 91), MAKEDATE(YEAR(CURDATE()) - 1, 91))`;
 
 const periodClause = (period, column = "doc_date") => {
   const p = String(period || "").toUpperCase();
-  if (p === "TODAY") return `\${column}=CURDATE()`;
-  if (p === "YESTERDAY") return `\${column}=CURDATE()-INTERVAL 1 DAY`;
-  if (p === "THIS_WEEK") return `YEARWEEK(\${column},1)=YEARWEEK(CURDATE(),1)`;
-  if (p === "THIS_MONTH") return `DATE_FORMAT(\${column},'%Y-%m')=DATE_FORMAT(CURDATE(),'%Y-%m')`;
+  if (p === "TODAY") return `${column}=CURDATE()`;
+  if (p === "YESTERDAY") return `${column}=CURDATE()-INTERVAL 1 DAY`;
+  if (p === "THIS_WEEK") return `YEARWEEK(${column},1)=YEARWEEK(CURDATE(),1)`;
+  if (p === "THIS_MONTH") return `DATE_FORMAT(${column},'%Y-%m')=DATE_FORMAT(CURDATE(),'%Y-%m')`;
   if (p === "THIS_FY") return fyWhere(column);
   return null;
 };
@@ -30,7 +30,7 @@ r.get("/sales-orders/list", async (req, res) => {
   const params = [ORG];
   if (search) {
     where.push("(s.doc_no LIKE ? OR p.name LIKE ? OR p.gstin LIKE ?)");
-    params.push(`%\${search}%`, `%\${search}%`, `%\${search}%`);
+    params.push(`%${search}%`, `%${search}%`, `%${search}%`);
   }
   if (godown) { where.push("s.warehouse_id=?"); params.push(godown); }
   if (status && ["DRAFT","CONFIRMED","PARTIAL","DELIVERED","CANCELLED","OVERDUE"].includes(status)) {
@@ -54,10 +54,10 @@ r.get("/sales-orders/list", async (req, res) => {
     JOIN parties p ON p.id=s.party_id
     JOIN warehouses w ON w.id=s.warehouse_id
     LEFT JOIN sales_order_lines sol ON sol.so_id=s.id
-    WHERE \${where.join(" AND ")}
+    WHERE ${where.join(" AND ")}
     GROUP BY s.id
   `;
-  const countRows = await q(`SELECT COUNT(*) total FROM (\${base}) x`, params);
+  const countRows = await q(`SELECT COUNT(*) total FROM (${base}) x`, params);
   const rows = await q(
     `SELECT *,
       CASE
@@ -77,7 +77,7 @@ r.get("/sales-orders/list", async (req, res) => {
           ELSE status
         END
       END display_status
-      FROM (\${base}) x
+      FROM (${base}) x
       ORDER BY order_date DESC,id DESC
       LIMIT ? OFFSET ?`,
     [...params, limit, cursor],
@@ -111,7 +111,7 @@ r.get("/receipts/list", async (req, res) => {
   const params = [ORG];
   if (search) {
     where.push("(r.doc_no LIKE ? OR p.name LIKE ?)");
-    params.push(`%\${search}%`, `%\${search}%`);
+    params.push(`%${search}%`, `%${search}%`);
   }
   if (mode) { where.push("r.mode=?"); params.push(mode); }
   const pc = periodClause(period, "r.receipt_date");
@@ -130,7 +130,7 @@ r.get("/receipts/list", async (req, res) => {
     FROM receipts r
     JOIN parties p ON p.id=r.party_id
     LEFT JOIN (SELECT receipt_id,SUM(amount) allocated FROM receipt_allocations GROUP BY receipt_id) a ON a.receipt_id=r.id
-    WHERE \${where.join(" AND ")}
+    WHERE ${where.join(" AND ")}
     ORDER BY r.receipt_date DESC,r.id DESC
     LIMIT 50
   `, params);
@@ -175,7 +175,7 @@ r.get("/ledger", async (req, res) => {
   const params = [ORG];
   if (item) {
     where.push("(i.name LIKE ? OR i.sku LIKE ? OR l.batch_id IN (SELECT id FROM batches WHERE batch_no LIKE ?))");
-    params.push(`%\${item}%`, `%\${item}%`, `%\${item}%`);
+    params.push(`%${item}%`, `%${item}%`, `%${item}%`);
   }
   if (godown) { where.push("l.warehouse_id=?"); params.push(godown); }
   if (type) { where.push("l.movement=?"); params.push(type); }
@@ -191,7 +191,7 @@ r.get("/ledger", async (req, res) => {
     JOIN items i ON i.id=l.item_id
     LEFT JOIN batches b ON b.id=l.batch_id
     JOIN warehouses w ON w.id=l.warehouse_id
-    WHERE \${where.join(" AND ")}
+    WHERE ${where.join(" AND ")}
     ORDER BY l.posted_at DESC,l.id DESC
     LIMIT 100
   `, params);
@@ -218,7 +218,7 @@ r.get("/transfers", async (req, res) => {
     JOIN warehouses f ON f.id=t.from_warehouse_id
     JOIN warehouses toW ON toW.id=t.to_warehouse_id
     LEFT JOIN stock_transfer_lines tl ON tl.transfer_id=t.id
-    WHERE \${where.join(" AND ")}
+    WHERE ${where.join(" AND ")}
     GROUP BY t.id
     ORDER BY t.transfer_date DESC,t.id DESC
   `, params);
@@ -259,7 +259,7 @@ r.post("/transfers", async (req, res) => {
   try {
     await c.beginTransaction();
     const [[mx]] = await c.query("SELECT COALESCE(MAX(CAST(SUBSTRING_INDEX(doc_no,'/',-1) AS UNSIGNED)),0) n FROM stock_transfers WHERE org_id=? AND doc_no LIKE 'XFR/%'", [ORG]);
-    const no = `XFR/25-26/\${String(mx.n + 1).padStart(5, "0")}`;
+    const no = `XFR/25-26/${String(mx.n + 1).padStart(5, "0")}`;
     const [ins] = await c.query("INSERT INTO stock_transfers (org_id,doc_no,from_warehouse_id,to_warehouse_id,transfer_date,status,value) VALUES (?,?,?,?,NOW(),'DRAFT',0)",
       [ORG, no, fromWarehouseId, toWarehouseId]);
     await c.commit();
@@ -323,7 +323,7 @@ r.get("/adjustments", async (req, res) => {
     JOIN items i ON i.id=a.item_id
     JOIN warehouses w ON w.id=a.warehouse_id
     LEFT JOIN batches b ON b.id=a.batch_id
-    WHERE \${where.join(" AND ")}
+    WHERE ${where.join(" AND ")}
     ORDER BY a.adjustment_date DESC,a.id DESC
   `, params);
   const [pending] = await q("SELECT COUNT(*) n,COALESCE(SUM(ABS(value)),0) value FROM stock_adjustments WHERE org_id=? AND status='PENDING'", [ORG]);
@@ -381,7 +381,7 @@ r.post("/adjustments", async (req, res) => {
     return res.status(422).json({ error:"warehouseId, itemId, batchId, qty and reason are required" });
   }
   const [mx] = await q("SELECT COALESCE(MAX(CAST(SUBSTRING_INDEX(doc_no,'/',-1) AS UNSIGNED)),0) n FROM stock_adjustments WHERE org_id=? AND doc_no LIKE 'ADJ/%'", [ORG]);
-  const no = `ADJ/25-26/\${String(mx[0].n + 1).padStart(5,'0')}`;
+  const no = `ADJ/25-26/${String(mx[0].n + 1).padStart(5,'0')}`;
   const [ins] = await q("INSERT INTO stock_adjustments (org_id,doc_no,warehouse_id,item_id,batch_id,adjustment_date,reason,qty,value,status,submitted_by,submitted_at) VALUES (?,?,?,?,?,NOW(),?,?,?,?,?,NOW())",
     [ORG,no,warehouseId,itemId,batchId,reason,Number(qty),Number(value||0),"PENDING",req.user?.name || "Owner"]);
   res.status(201).json({ id:ins.insertId,docNo:no });
@@ -393,14 +393,14 @@ r.get("/parties/list", async (req, res) => {
   const type = String(req.query.type || "").toUpperCase();
   const where = ["p.org_id=?"];
   const params = [ORG];
-  if (search) { where.push("(p.name LIKE ? OR p.gstin LIKE ? OR p.mobile LIKE ?)"); params.push(`%\${search}%`,`%\${search}%`,`%\${search}%`); }
+  if (search) { where.push("(p.name LIKE ? OR p.gstin LIKE ? OR p.mobile LIKE ?)"); params.push(`%${search}%`,`%${search}%`,`%${search}%`); }
   if (type && ["CUSTOMER","SUPPLIER"].includes(type)) { where.push("p.party_type=?"); params.push(type); }
   const rows = await q(`
     SELECT p.id,p.name,p.party_type,p.gstin,p.mobile,p.credit_limit,p.status,p.preferred,
       COALESCE(SUM(i.balance_due),0) outstanding
     FROM parties p
     LEFT JOIN invoices i ON i.party_id=p.id AND i.balance_due>0
-    WHERE \${where.join(" AND ")}
+    WHERE ${where.join(" AND ")}
     GROUP BY p.id
     ORDER BY p.party_type='CUSTOMER' DESC,p.name
     LIMIT 100
@@ -480,7 +480,7 @@ r.get("/reports", async (req, res) => {
     reports: [
       { key:"sales",title:"Sales register",description:"Invoice-level sales by customer, GST rate, godown and taxable amount.",status:"Ready" },
       { key:"stock",title:"Stock valuation",description:"Weighted-average valuation by item, batch and godown.",status:"Ready" },
-      { key:"outstanding",title:"Outstanding report",description:"Ageing, due dates and customer-wise balance with receipts.",status:`\${receivables.n} overdue` },
+      { key:"outstanding",title:"Outstanding report",description:"Ageing, due dates and customer-wise balance with receipts.",status:`${receivables.n} overdue` },
       { key:"gstr",title:"GSTR-1",description:"B2B, B2C, credit/debit notes and filing validation checks.",status:"Needs review" },
     ],
     rows,
