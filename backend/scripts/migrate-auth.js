@@ -34,13 +34,13 @@ const statements = [
   )`,
 ];
 
+for (const sql of statements) await pool.query(sql);
+
 try {
   await pool.query("ALTER TABLE password_reset_otps ADD COLUMN otp_code VARCHAR(6) NULL AFTER otp_hash");
 } catch (error) {
   if (error.code !== "ER_DUP_FIELDNAME") throw error;
 }
-
-for (const sql of statements) await pool.query(sql);
 
 console.log("PrimeBiller auth schema is up to date: app_users, app_sessions, password_reset_otps.");
 await pool.end();
