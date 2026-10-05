@@ -277,11 +277,27 @@ r.post("/transfers/:id/receive", async (req, res) => {
     const [[t]] = await c.query("SELECT * FROM stock_transfers WHERE id=? AND org_id=? FOR UPDATE", [req.params.id, ORG]);
     if (!t) return res.status(404).json({ error: "Transfer not found" });
     if (t.status !== "IN_TRANSIT") throw Object.assign(new Error("Only in-transit transfers can be received"), { code: 409 });
-    const [lines] = await c.query("SELECT * FROM stock_transfer_lines WHERE transfer_id=?", [t.id]);
+    const [lines] = await c.query(
+      "SELECT tl.*,b.batch_no,b.unit_cost FROM stock_transfer_lines tl LEFT JOIN batches b ON b.id=tl.batch_id WHERE tl.transfer_id=? ORDER BY tl.id",
+      [t.id],
+    );
     for (const line of lines) {
+      if (!line.batch_no) throw Object.assign(new Error("Transfer line is missing its source batch"), { code: 422 });
+      const [dest] = await c.query(
+        "SELECT id FROM batches WHERE item_id=? AND warehouse_id=? AND batch_no=? FOR UPDATE",
+        [line.item_id,t.to_warehouse_id,line.batch_no],
+      );
+      let destId = dest[0]?.id;
+      if (!destId) {
+        const [ins] = await c.query(
+          "INSERT INTO batches (item_id,warehouse_id,batch_no,mfg_date,unit_cost,qty_on_hand,qty_reserved) SELECT item_id,?,batch_no,mfg_date,unit_cost,0,0 FROM batches WHERE id=?",
+          [t.to_warehouse_id,line.batch_id],
+        );
+        destId = ins.insertId;
+      }
+      await c.query("UPDATE batches SET qty_on_hand=qty_on_hand+? WHERE id=?", [line.qty,destId]);
       await c.query("INSERT INTO stock_ledger (org_id,warehouse_id,item_id,batch_id,doc_no,movement,qty,value,reason) VALUES (?,?,?,?,?,'TRANSFER_IN',?,?,?)",
-        [ORG,t.to_warehouse_id,line.item_id,line.batch_id,t.doc_no,line.qty,round(line.qty*line.rate),"Transfer receipt"]);
-      if (line.batch_id) await c.query("UPDATE batches SET qty_on_hand=qty_on_hand+? WHERE id=?", [line.qty,line.batch_id]);
+        [ORG,t.to_warehouse_id,line.item_id,destId,t.doc_no,line.qty,round(line.qty*line.rate),"Transfer receipt"]);
     }
     await c.query("UPDATE stock_transfers SET status='COMPLETED',pod_pending=0 WHERE id=?", [t.id]);
     await c.commit();
