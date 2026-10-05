@@ -1,25 +1,41 @@
 # PrimeBiller Backend
 
-Node.js + Express API with first-party MySQL-backed authentication.
+Node.js + Express API with first-party MySQL authentication.
 
 ## Authentication
 
-The project does not use Better Auth. Authentication uses app_users for email/password accounts, app_sessions for secure HTTP-only sessions, and password_reset_otps for email OTP password recovery.
+- Registration is verified with a 6-digit OTP.
+- The first successfully verified registration becomes the permanent `MASTER_ADMIN`.
+- Later registrations receive the `USER` role.
+- Master-admin ownership is serialized with a MySQL row lock and protected from deletion by the bootstrap foreign key.
+- Passwords use Node.js `scrypt`.
+- Sessions use HTTP-only cookies and production `Secure; SameSite=None` flags.
+- Password reset uses the same 6-digit OTP algorithm.
 
-Password recovery continues to use the existing Nodemailer SMTP transporter in backend/email.js.
+## OTP delivery
+
+There is intentionally no SMTP dependency in the current deployment. Registration and password-reset OTPs are generated with `crypto.randomInt(100000, 1000000)` and printed directly to the Render API logs.
+
+Example:
+
+`[otp] registration OTP for user@example.com: 123456 (expires in 10 minutes, id=42)`
+
+The plaintext OTP is never stored. Only its SHA-256 hash, expiry, purpose, and attempt counter are stored in `auth_otps`.
+
+OTP generation/logging does not call an external mail provider, so SMTP/network failures cannot crash the authentication request.
 
 ## Local setup
 
-Run npm install, npm run db:schema, npm run db:migrate, npm run seed:demo, then npm start.
+Run:
 
-Configure DATABASE_URL, FRONTEND_URL, DEMO_EMAIL, DUMMY_PASSWORD, and the existing SMTP_* variables in .env.
+```bash
+npm install
+npm run db:schema
+npm run db:migrate
+npm run seed:data
+npm start
+```
 
-## Email / OTP delivery
+No `DEMO_EMAIL`, `DUMMY_PASSWORD`, `SMTP_*`, Brevo, or Resend variables are required for authentication.
 
-`email.js` picks a provider in this order: `BREVO_API_KEY` -> `RESEND_API_KEY` -> SMTP (`SMTP_HOST`) -> console only.
-
-Render free web services block outbound SMTP ports (25, 465, 587), so on the free tier use Brevo or Resend (HTTPS, port 443) or upgrade to a paid instance. Check the startup log line `Email provider: ...` and, for SMTP, `SMTP connection verification failed`.
-
-Set `LOG_OTP=true` to print OTPs in the server log while debugging (disabled in production unless `LOG_OTP_IN_PRODUCTION=true`). Turn it off afterwards.
-
-After a successful password reset the API signs the user in (fresh session cookie, all older sessions revoked) and returns `{ ok, session }`; the frontend then routes to `#/dashboard`.
+After registration, the API creates the user's session automatically and the frontend routes to the dashboard.
