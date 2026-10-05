@@ -31,18 +31,18 @@ try {
   // Expand the party master to the counts shown in the reference screen.
   const [[cc]] = await c.query("SELECT COUNT(*) n FROM parties WHERE org_id=? AND party_type='CUSTOMER'", [org.id]);
   for (let i = Number(cc.n) + 1; i <= 186; i++) {
-    const gstin = i <= 175 ? `36DUMMYSTORE\${String(i).padStart(2,'0')}`.slice(0,15) : null;
+    const gstin = i <= 175 ? `36DUMMYSTORE${String(i).padStart(2,'0')}`.slice(0,15) : null;
     const status = i <= 7 ? 'ON_HOLD' : 'ACTIVE';
     await ex(
       "INSERT INTO parties (org_id,name,gstin,mobile,credit_limit,party_type,status,preferred) VALUES (?,?,?,?,?,'CUSTOMER',?,0)",
-      [org.id, `Customer \${String(i).padStart(3,'0')}`, gstin, `90000\${String(10000+i).slice(-5)}`, 200000, status],
+      [org.id, `Customer ${String(i).padStart(3,'0')}`, gstin, `90000${String(10000+i).slice(-5)}`, 200000, status],
     );
   }
   const [[sc]] = await c.query("SELECT COUNT(*) n FROM parties WHERE org_id=? AND party_type='SUPPLIER'", [org.id]);
   for (let i = Number(sc.n) + 1; i <= 72; i++) {
     await ex(
       "INSERT INTO parties (org_id,name,gstin,mobile,credit_limit,party_type,status,preferred) VALUES (?,?,?,?,0,'SUPPLIER','ACTIVE',?)",
-      [org.id, `Supplier \${String(i).padStart(3,'0')}`, `36SUPPLIER\${String(i).padStart(4,'0')}`.slice(0,15), `91000\${String(10000+i).slice(-5)}`, i <= 14 ? 1 : 0],
+      [org.id, `Supplier ${String(i).padStart(3,'0')}`, `36SUPPLIER${String(i).padStart(4,'0')}`.slice(0,15), `91000${String(10000+i).slice(-5)}`, i <= 14 ? 1 : 0],
     );
   }
 
@@ -77,7 +77,7 @@ try {
   for (const [no,from,to,date,status,value,pod] of transferDefs) {
     const [ins] = await c.query(
       "INSERT INTO stock_transfers (org_id,doc_no,from_warehouse_id,to_warehouse_id,transfer_date,status,value,pod_pending) VALUES (?,?,?,?,?,?,?,?)",
-      [org.id,`XFR/25-26/\${no}`,from,to,date,status,value,pod],
+      [org.id,`XFR/25-26/${no}`,from,to,date,status,value,pod],
     );
     if (no === '00031') {
       await ex("INSERT INTO stock_transfer_lines (transfer_id,item_id,batch_id,qty,rate) VALUES (?,?,?,?,?)",( [ins.insertId,konark.id,kb[0]?.id || null,250,370] ));
@@ -92,7 +92,7 @@ try {
   for (let i = Number(tc.n) + 1; i <= 41; i++) {
     await ex(
       "INSERT INTO stock_transfers (org_id,doc_no,from_warehouse_id,to_warehouse_id,transfer_date,status,value,pod_pending) VALUES (?,?,?,?,?,'COMPLETED',?,0)",
-      [org.id,`XFR/25-26/9\${String(i).padStart(3,'0')}`,b.id,j.id,`2026-09-\${String((i % 20)+1).padStart(2,'0')} 09:00:00`,30000 + i * 1000],
+      [org.id,`XFR/25-26/9${String(i).padStart(3,'0')}`,b.id,j.id,`2026-09-${String((i % 20)+1).padStart(2,'0')} 09:00:00`,30000 + i * 1000],
     );
   }
 
@@ -107,8 +107,8 @@ try {
     if (!batchId) continue;
     await ex(
       "INSERT INTO stock_adjustments (org_id,doc_no,warehouse_id,item_id,batch_id,adjustment_date,reason,qty,value,status,submitted_by,submitted_at) VALUES (?,?,?,?,?,? ,?,?,?,?,?,?)",
-      [org.id,`ADJ/25-26/\${no}`,wid,itemId,batchId,
-       no==='00011'?'2026-09-21 16:18:00':no==='00012'?'2026-09-22 08:31:00':`2026-09-\${String(22-Number(no)+12).padStart(2,'0')} 10:00:00`,
+      [org.id,`ADJ/25-26/${no}`,wid,itemId,batchId,
+       no==='00011'?'2026-09-21 16:18:00':no==='00012'?'2026-09-22 08:31:00':`2026-09-${String(22-Number(no)+12).padStart(2,'0')} 10:00:00`,
        reason,qty,value,status,'Harish K.','2026-09-21 16:18:00'],
     );
   }
