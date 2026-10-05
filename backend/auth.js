@@ -175,8 +175,14 @@ export async function requestPasswordReset(email) {
   const normalizedEmail = normalizeEmail(email);
   const demoEmail = configuredDemoEmail();
 
+  console.log(
+    `[auth] Password reset requested: email=${normalizedEmail || "missing"} demoMatch=${Boolean(demoEmail && normalizedEmail === demoEmail)}`,
+  );
+
   // Keep the recovery surface scoped to the configured dummy account.
-  if (!demoEmail || normalizedEmail !== demoEmail) return { ok: true };
+  if (!demoEmail || normalizedEmail !== demoEmail) {
+    return { ok: false, error: "Use the configured dummy email address." };
+  }
 
   const user = await findUserByEmail(demoEmail);
 
