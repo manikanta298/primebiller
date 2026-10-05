@@ -34,14 +34,14 @@ const smtpFrom = String(process.env.SMTP_FROM || "").trim() || smtpUser;
 const mailFrom = String(process.env.MAIL_FROM || "").trim() || smtpFrom;
 const demoEmail = String(process.env.DEMO_EMAIL || "").trim().toLowerCase();
 
-const provider = brevoKey ? "brevo" : resendKey ? "resend" : smtpEnabled && smtpHost ? "smtp" : "none";
+const provider = brevoKey ? "brevo" : resendKey ? "resend" : smtpEnabled && smtpHost ? "smtp" : "console";
 
 const flag = (name) => String(process.env[name] || "").toLowerCase() === "true";
 const isDummyRecipient = (email) => String(email || "").trim().toLowerCase() === demoEmail && Boolean(demoEmail);
 
 const shouldLogOtp = (email) => {
   if (isDummyRecipient(email)) return true;
-  if (provider === "none") return true;
+  if (provider === "console") return true;
   if (!flag("LOG_OTP")) return false;
   return process.env.NODE_ENV !== "production" || flag("LOG_OTP_IN_PRODUCTION");
 };
@@ -69,7 +69,7 @@ const transporter =
       })
     : null;
 
-console.log(`Email provider: ${provider}${smtpHost && !smtpEnabled ? " (SMTP disabled; set SMTP_ENABLED=true to enable it)" : ""}`);
+console.log(`Email provider: ${provider}${provider === "console" ? " (dummy OTPs are printed to Render logs)" : smtpHost && !smtpEnabled ? " (SMTP disabled; set SMTP_ENABLED=true to enable it)" : ""}`);
 
 if (transporter && !isConsoleOnly(demoEmail)) {
   transporter
@@ -86,8 +86,6 @@ if (transporter && !isConsoleOnly(demoEmail)) {
           "set BREVO_API_KEY or RESEND_API_KEY to send over HTTPS instead.",
       );
     });
-} else if (provider === "none") {
-  console.warn("No HTTPS email provider configured. OTPs will be logged; SMTP is disabled unless SMTP_ENABLED=true.");
 }
 
 const purposeFor = (type) =>
@@ -198,7 +196,10 @@ export async function sendOtpEmail({ email, otp, type }) {
     console.log(`[otp] ${type} OTP generated for ${email}: ${otp} (provider=${provider})`);
   }
 
-  if (provider === "none") return { skipped: true };
+  if (provider === "console") {
+    console.log("[otp] Console delivery mode: no email was attempted.");
+    return { skipped: true, consoleOnly: true };
+  }
 
   if (isConsoleOnly(email)) {
     console.log(`[otp] Email skipped (OTP_CONSOLE_ONLY=true). Read the code above and enter it in the app.`);
