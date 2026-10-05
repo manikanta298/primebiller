@@ -11,7 +11,7 @@ const RESET_OTP_TTL_SECONDS = 60 * 5;
 const MAX_RESET_ATTEMPTS = 5;
 
 const normalizeEmail = (email) => String(email || "").trim().toLowerCase();
-const configuredDemoEmail = () => normalizeEmail(process.env.DEMO_EMAIL);
+
 
 const hashPassword = async (password) => {
   const salt = crypto.randomBytes(16).toString("hex");
@@ -90,7 +90,7 @@ export async function createUser({ name, email, password }) {
 
 async function findUserByEmail(email) {
   const [rows] = await pool.query(
-    "SELECT id,name,email,password_hash,email_verified FROM app_users WHERE email=? LIMIT 1",
+    "SELECT id,name,email,password_hash,email_verified,role FROM app_users WHERE email=? LIMIT 1",
     [normalizeEmail(email)],
   );
   return rows[0] || null;
@@ -112,13 +112,8 @@ export async function signIn(req, res, { email, password, rememberMe = true }) {
   const demoEmail = configuredDemoEmail();
   const normalizedEmail = normalizeEmail(email);
 
-  // This deployment intentionally accepts only the configured dummy/demo account.
-  if (!demoEmail || normalizedEmail !== demoEmail) {
-    return { ok: false, error: "Invalid email or password." };
-  }
-
-  const user = await findUserByEmail(demoEmail);
-  if (!user || !(await verifyPassword(password, user.password_hash))) {
+  const user = await findUserByEmail(normalizedEmail);
+  if (!user || !(await verifyPassword(password, user.password_hash)) || !user.email_verified) {
     return { ok: false, error: "Invalid email or password." };
   }
   const session = await createSession(user.id, rememberMe !== false);
@@ -142,7 +137,7 @@ export async function getSession(req) {
   if (!token) return null;
 
   const [rows] = await pool.query(
-    `SELECT u.id,u.name,u.email,u.email_verified,s.expires_at
+    `SELECT u.id,u.name,u.email,u.email_verified,u.role,s.expires_at
      FROM app_sessions s
      JOIN app_users u ON u.id=s.user_id
      WHERE s.token_hash=? AND s.expires_at>NOW()
@@ -173,12 +168,7 @@ export async function signOut(req, res) {
 
 export async function requestPasswordReset(email) {
   const normalizedEmail = normalizeEmail(email);
-  const demoEmail = configuredDemoEmail();
-
-  // Keep the recovery surface scoped to the configured dummy account.
-  if (!demoEmail || normalizedEmail !== demoEmail) return { ok: true };
-
-  const user = await findUserByEmail(demoEmail);
+  const user = await findUserByEmail(normalizedEmail);
 
   // Always return success to avoid exposing whether an account exists.
   if (!user) return { ok: true };
@@ -216,6 +206,7 @@ const publicUser = (user) => ({
   name: user.name,
   email: user.email,
   emailVerified: Boolean(user.email_verified),
+  role: user.role,
 });
 
 export async function resetPassword(req, res, { email, otp, password }) {
@@ -270,6 +261,133 @@ export async function resetPassword(req, res, { email, otp, password }) {
   setSessionCookie(req, res, session.token, session.ttl);
 
   return { ok: true, session: { user: publicUser(user) } };
+}
+
+const REGISTRATION_OTP_TTL_SECONDS = 10 * 60;
+
+async function createOtp(email, purpose) {
+  const normalizedEmail = normalizeEmail(email);
+  const otp = String(crypto.randomInt(100000, 1000000));
+  const otpHash = hashToken(otp);
+  const expiresAt = new Date(Date.now() + REGISTRATION_OTP_TTL_SECONDS * 1000);
+
+  await pool.query(
+    "UPDATE auth_otps SET used_at=NOW() WHERE email=? AND purpose=? AND used_at IS NULL",
+    [normalizedEmail, purpose],
+  );
+  const [result] = await pool.query(
+    "INSERT INTO auth_otps (email,purpose,otp_hash,expires_at,attempts,created_at) VALUES (?,?,?,?,0,NOW())",
+    [normalizedEmail, purpose, otpHash, expiresAt],
+  );
+
+  // OTP delivery is intentionally log-only in this deployment. This never throws because
+  // there is no SMTP dependency in the registration/recovery path.
+  console.log(`[otp] ${purpose} OTP for ${normalizedEmail}: ${otp} (expires in 10 minutes, id=${result.insertId})`);
+  return { otpId: result.insertId };
+}
+
+async function verifyOtp(email, purpose, otp) {
+  const normalizedEmail = normalizeEmail(email);
+  const value = String(otp || "").trim();
+  if (!/^\d{6}$/.test(value)) return { ok: false, error: "Enter the 6-digit OTP." };
+
+  const [rows] = await pool.query(
+    "SELECT id,otp_hash,attempts,expires_at FROM auth_otps WHERE email=? AND purpose=? AND used_at IS NULL ORDER BY id DESC LIMIT 1",
+    [normalizedEmail, purpose],
+  );
+  const record = rows[0];
+  if (!record || new Date(record.expires_at).getTime() <= Date.now()) {
+    return { ok: false, error: "Invalid or expired OTP." };
+  }
+  if (Number(record.attempts) >= MAX_RESET_ATTEMPTS) {
+    return { ok: false, error: "Too many invalid OTP attempts. Request a new code." };
+  }
+
+  const valid = crypto.timingSafeEqual(
+    Buffer.from(hashToken(value), "hex"),
+    Buffer.from(record.otp_hash, "hex"),
+  );
+  if (!valid) {
+    await pool.query("UPDATE auth_otps SET attempts=attempts+1 WHERE id=?", [record.id]);
+    return { ok: false, error: "Invalid or expired OTP." };
+  }
+
+  await pool.query("UPDATE auth_otps SET used_at=NOW() WHERE id=?", [record.id]);
+  return { ok: true };
+}
+
+export async function requestRegistrationOtp({ name, email, password }) {
+  const normalizedEmail = normalizeEmail(email);
+  if (!normalizedEmail || !/^\\S+@\\S+\\.\\S+$/.test(normalizedEmail)) {
+    return { ok: false, error: "Enter a valid email address." };
+  }
+  if (String(name || "").trim().length < 2) {
+    return { ok: false, error: "Enter your full name." };
+  }
+  if (String(password || "").length < 8) {
+    return { ok: false, error: "Password must be at least 8 characters." };
+  }
+
+  const existing = await findUserByEmail(normalizedEmail);
+  if (existing) return { ok: false, error: "An account with this email already exists." };
+
+  await createOtp(normalizedEmail, "registration");
+  return { ok: true };
+}
+
+export async function registerUser({ name, email, password, otp }) {
+  const normalizedEmail = normalizeEmail(email);
+  if (String(password || "").length < 8) {
+    return { ok: false, error: "Password must be at least 8 characters." };
+  }
+
+  const verified = await verifyOtp(normalizedEmail, "registration", otp);
+  if (!verified.ok) return verified;
+
+  const passwordHash = await hashPassword(password);
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    // This singleton row is the concurrency lock that makes "first verified registration"
+    // deterministic even if two people submit registration at the same time.
+    await connection.query("INSERT IGNORE INTO auth_bootstrap (id,master_admin_user_id) VALUES (1,NULL)");
+    const [[bootstrap]] = await connection.query(
+      "SELECT master_admin_user_id FROM auth_bootstrap WHERE id=1 FOR UPDATE",
+    );
+
+    const [existing] = await connection.query(
+      "SELECT id FROM app_users WHERE email=? LIMIT 1 FOR UPDATE",
+      [normalizedEmail],
+    );
+    if (existing.length) {
+      await connection.rollback();
+      return { ok: false, error: "An account with this email already exists." };
+    }
+
+    const role = bootstrap.master_admin_user_id === null ? "MASTER_ADMIN" : "USER";
+    const [result] = await connection.query(
+      "INSERT INTO app_users (name,email,password_hash,email_verified,role,created_at,updated_at) VALUES (?,?,?,?,?,NOW(),NOW())",
+      [String(name).trim(), normalizedEmail, passwordHash, 1, role],
+    );
+
+    if (role === "MASTER_ADMIN") {
+      await connection.query(
+        "UPDATE auth_bootstrap SET master_admin_user_id=? WHERE id=1 AND master_admin_user_id IS NULL",
+        [result.insertId],
+      );
+    }
+
+    await connection.commit();
+    console.log(`[auth] Registered ${normalizedEmail} as ${role}`);
+    return { ok: true, role, userId: result.insertId };
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
 }
 
 export async function requireSession(req, res, next) {
