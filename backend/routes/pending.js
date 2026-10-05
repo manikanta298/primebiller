@@ -6,14 +6,14 @@ const r = Router();
 const round = (n) => Math.round((Number(n || 0) + Number.EPSILON) * 100) / 100;
 
 const fyWhere = (column) =>
-  \`\${column} >= IF(MONTH(CURDATE()) >= 4, MAKEDATE(YEAR(CURDATE()), 91), MAKEDATE(YEAR(CURDATE()) - 1, 91))\`;
+  `\${column} >= IF(MONTH(CURDATE()) >= 4, MAKEDATE(YEAR(CURDATE()), 91), MAKEDATE(YEAR(CURDATE()) - 1, 91))`;
 
 const periodClause = (period, column = "doc_date") => {
   const p = String(period || "").toUpperCase();
-  if (p === "TODAY") return \`\${column}=CURDATE()\`;
-  if (p === "YESTERDAY") return \`\${column}=CURDATE()-INTERVAL 1 DAY\`;
-  if (p === "THIS_WEEK") return \`YEARWEEK(\${column},1)=YEARWEEK(CURDATE(),1)\`;
-  if (p === "THIS_MONTH") return \`DATE_FORMAT(\${column},'%Y-%m')=DATE_FORMAT(CURDATE(),'%Y-%m')\`;
+  if (p === "TODAY") return `\${column}=CURDATE()`;
+  if (p === "YESTERDAY") return `\${column}=CURDATE()-INTERVAL 1 DAY`;
+  if (p === "THIS_WEEK") return `YEARWEEK(\${column},1)=YEARWEEK(CURDATE(),1)`;
+  if (p === "THIS_MONTH") return `DATE_FORMAT(\${column},'%Y-%m')=DATE_FORMAT(CURDATE(),'%Y-%m')`;
   if (p === "THIS_FY") return fyWhere(column);
   return null;
 };
@@ -30,7 +30,7 @@ r.get("/sales-orders/list", async (req, res) => {
   const params = [ORG];
   if (search) {
     where.push("(s.doc_no LIKE ? OR p.name LIKE ? OR p.gstin LIKE ?)");
-    params.push(\`%\${search}%\`, \`%\${search}%\`, \`%\${search}%\`);
+    params.push(`%\${search}%`, `%\${search}%`, `%\${search}%`);
   }
   if (godown) { where.push("s.warehouse_id=?"); params.push(godown); }
   if (status && ["DRAFT","CONFIRMED","PARTIAL","DELIVERED","CANCELLED","OVERDUE"].includes(status)) {
@@ -43,7 +43,7 @@ r.get("/sales-orders/list", async (req, res) => {
   const pc = periodClause(period, "s.order_date");
   if (pc) where.push(pc);
 
-  const base = \`
+  const base = `
     SELECT
       s.id,s.doc_no,s.order_date,s.status,s.total,s.warehouse_id,w.name godown,
       p.name customer,p.gstin,
@@ -56,10 +56,10 @@ r.get("/sales-orders/list", async (req, res) => {
     LEFT JOIN sales_order_lines sol ON sol.so_id=s.id
     WHERE \${where.join(" AND ")}
     GROUP BY s.id
-  \`;
-  const countRows = await q(\`SELECT COUNT(*) total FROM (\${base}) x\`, params);
+  `;
+  const countRows = await q(`SELECT COUNT(*) total FROM (\${base}) x`, params);
   const rows = await q(
-    \`SELECT *,
+    `SELECT *,
       CASE
         WHEN doc_no='SO/25-26/00042' THEN 0
         WHEN status='DELIVERED' THEN 100
@@ -79,7 +79,7 @@ r.get("/sales-orders/list", async (req, res) => {
       END display_status
       FROM (\${base}) x
       ORDER BY order_date DESC,id DESC
-      LIMIT ? OFFSET ?\`,
+      LIMIT ? OFFSET ?`,
     [...params, limit, cursor],
   );
 
@@ -111,13 +111,13 @@ r.get("/receipts/list", async (req, res) => {
   const params = [ORG];
   if (search) {
     where.push("(r.doc_no LIKE ? OR p.name LIKE ?)");
-    params.push(\`%\${search}%\`, \`%\${search}%\`);
+    params.push(`%\${search}%`, `%\${search}%`);
   }
   if (mode) { where.push("r.mode=?"); params.push(mode); }
   const pc = periodClause(period, "r.receipt_date");
   if (pc) where.push(pc);
 
-  const rows = await q(\`
+  const rows = await q(`
     SELECT r.id,r.doc_no,r.receipt_date,r.mode,r.amount,r.unadjusted,p.name party,
       COALESCE(a.allocated,0) allocated,
       CASE
@@ -133,7 +133,7 @@ r.get("/receipts/list", async (req, res) => {
     WHERE \${where.join(" AND ")}
     ORDER BY r.receipt_date DESC,r.id DESC
     LIMIT 50
-  \`, params);
+  `, params);
 
   const [adv] = await q("SELECT COALESCE(SUM(unadjusted),0) value,COUNT(*) n FROM receipts WHERE org_id=? AND unadjusted>0", [ORG]);
   const [month] = await q("SELECT COALESCE(SUM(amount),0) value,COUNT(*) n FROM receipts WHERE org_id=? AND receipt_date>=DATE_FORMAT(CURDATE(),'%Y-%m-01')", [ORG]);
@@ -141,7 +141,7 @@ r.get("/receipts/list", async (req, res) => {
   const [cheques] = await q("SELECT COALESCE(SUM(amount),0) value,COUNT(*) n FROM receipts WHERE org_id=? AND mode='Cheque' AND doc_no='RCT/25-26/00079'", [ORG]);
   const [counts] = await q("SELECT 'Receipts' label,COUNT(*) n FROM receipts WHERE org_id=? UNION ALL SELECT 'Advances',COUNT(*) FROM receipts WHERE org_id=? AND unadjusted>0", [ORG, ORG]);
 
-  const allocation = await q(\`
+  const allocation = await q(`
     SELECT r.id receipt_id,r.doc_no,r.receipt_date,r.mode,r.unadjusted,
       i.doc_no invoice_no,i.invoice_date,i.due_date,i.balance_due,
       GREATEST(0,DATEDIFF(CURDATE(),i.due_date)) overdue_days
@@ -150,7 +150,7 @@ r.get("/receipts/list", async (req, res) => {
     WHERE r.org_id=? AND r.unadjusted>0 AND i.balance_due>0
     ORDER BY r.receipt_date,i.due_date
     LIMIT 3
-  \`, [ORG]);
+  `, [ORG]);
 
   res.json({
     rows,
@@ -175,14 +175,14 @@ r.get("/ledger", async (req, res) => {
   const params = [ORG];
   if (item) {
     where.push("(i.name LIKE ? OR i.sku LIKE ? OR l.batch_id IN (SELECT id FROM batches WHERE batch_no LIKE ?))");
-    params.push(\`%\${item}%\`, \`%\${item}%\`, \`%\${item}%\`);
+    params.push(`%\${item}%`, `%\${item}%`, `%\${item}%`);
   }
   if (godown) { where.push("l.warehouse_id=?"); params.push(godown); }
   if (type) { where.push("l.movement=?"); params.push(type); }
   const pc = periodClause(period, "l.posted_at");
   if (pc) where.push(pc);
 
-  const rows = await q(\`
+  const rows = await q(`
     SELECT
       l.id,l.posted_at,l.doc_no,l.movement,l.qty,l.value,l.reason,
       i.name item,i.sku,b.batch_no,w.name godown,i.base_uom uom,
@@ -194,7 +194,7 @@ r.get("/ledger", async (req, res) => {
     WHERE \${where.join(" AND ")}
     ORDER BY l.posted_at DESC,l.id DESC
     LIMIT 100
-  \`, params);
+  `, params);
 
   const [opening] = await q("SELECT COALESCE(SUM(qty_on_hand*unit_cost),0) value FROM batches", []);
   const [inwards] = await q("SELECT COALESCE(SUM(value),0) value,COALESCE(SUM(ABS(qty)),0) qty FROM stock_ledger WHERE org_id=? AND posted_at>=CURDATE() AND movement='PURCHASE'", [ORG]);
@@ -211,7 +211,7 @@ r.get("/transfers", async (req, res) => {
   const where = ["t.org_id=?"];
   const params = [ORG];
   if (status) { where.push("t.status=?"); params.push(status); }
-  const rows = await q(\`
+  const rows = await q(`
     SELECT t.id,t.doc_no,t.transfer_date,t.status,t.value,t.pod_pending,
       f.name from_godown,toW.name to_godown,COUNT(tl.id) lines
     FROM stock_transfers t
@@ -221,7 +221,7 @@ r.get("/transfers", async (req, res) => {
     WHERE \${where.join(" AND ")}
     GROUP BY t.id
     ORDER BY t.transfer_date DESC,t.id DESC
-  \`, params);
+  `, params);
   const [draft] = await q("SELECT COUNT(*) n FROM stock_transfers WHERE org_id=? AND status='DRAFT'", [ORG]);
   const [transit] = await q("SELECT COUNT(*) n FROM stock_transfers WHERE org_id=? AND status='IN_TRANSIT'", [ORG]);
   const [completed] = await q("SELECT COUNT(*) n,COALESCE(SUM(value),0) value FROM stock_transfers WHERE org_id=? AND status='COMPLETED'", [ORG]);
@@ -229,21 +229,21 @@ r.get("/transfers", async (req, res) => {
 
   let selected = null;
   if (req.query.id) {
-    const [head] = await q(\`
+    const [head] = await q(`
       SELECT t.*,f.name from_godown,toW.name to_godown
       FROM stock_transfers t
       JOIN warehouses f ON f.id=t.from_warehouse_id
       JOIN warehouses toW ON toW.id=t.to_warehouse_id
       WHERE t.id=? AND t.org_id=?
-    \`, [req.query.id, ORG]);
+    `, [req.query.id, ORG]);
     if (head) {
-      const lines = await q(\`
+      const lines = await q(`
         SELECT tl.id,tl.qty,tl.rate,i.name item,i.sku,i.base_uom uom,b.batch_no
         FROM stock_transfer_lines tl
         JOIN items i ON i.id=tl.item_id
         LEFT JOIN batches b ON b.id=tl.batch_id
         WHERE tl.transfer_id=? ORDER BY tl.id
-      \`, [head.id]);
+      `, [head.id]);
       selected = { ...head, lines };
     }
   }
@@ -259,7 +259,7 @@ r.post("/transfers", async (req, res) => {
   try {
     await c.beginTransaction();
     const [[mx]] = await c.query("SELECT COALESCE(MAX(CAST(SUBSTRING_INDEX(doc_no,'/',-1) AS UNSIGNED)),0) n FROM stock_transfers WHERE org_id=? AND doc_no LIKE 'XFR/%'", [ORG]);
-    const no = \`XFR/25-26/\${String(mx.n + 1).padStart(5, "0")}\`;
+    const no = `XFR/25-26/\${String(mx.n + 1).padStart(5, "0")}`;
     const [ins] = await c.query("INSERT INTO stock_transfers (org_id,doc_no,from_warehouse_id,to_warehouse_id,transfer_date,status,value) VALUES (?,?,?,?,NOW(),'DRAFT',0)",
       [ORG, no, fromWarehouseId, toWarehouseId]);
     await c.commit();
@@ -316,7 +316,7 @@ r.get("/adjustments", async (req, res) => {
   const params = [ORG];
   if (status) { where.push("a.status=?"); params.push(status); }
   if (godown) { where.push("a.warehouse_id=?"); params.push(godown); }
-  const rows = await q(\`
+  const rows = await q(`
     SELECT a.id,a.doc_no,a.adjustment_date,a.reason,a.qty,a.value,a.status,a.submitted_by,
       i.name item,i.sku,i.base_uom uom,w.name godown,b.batch_no
     FROM stock_adjustments a
@@ -325,7 +325,7 @@ r.get("/adjustments", async (req, res) => {
     LEFT JOIN batches b ON b.id=a.batch_id
     WHERE \${where.join(" AND ")}
     ORDER BY a.adjustment_date DESC,a.id DESC
-  \`, params);
+  `, params);
   const [pending] = await q("SELECT COUNT(*) n,COALESCE(SUM(ABS(value)),0) value FROM stock_adjustments WHERE org_id=? AND status='PENDING'", [ORG]);
   const [month] = await q("SELECT COUNT(*) n FROM stock_adjustments WHERE org_id=? AND status='POSTED' AND adjustment_date>=DATE_FORMAT(CURDATE(),'%Y-%m-01')", [ORG]);
   const [inc] = await q("SELECT COALESCE(SUM(value),0) value FROM stock_adjustments WHERE org_id=? AND status='POSTED' AND qty>0 AND adjustment_date>=DATE_FORMAT(CURDATE(),'%Y-%m-01')", [ORG]);
@@ -381,7 +381,7 @@ r.post("/adjustments", async (req, res) => {
     return res.status(422).json({ error:"warehouseId, itemId, batchId, qty and reason are required" });
   }
   const [mx] = await q("SELECT COALESCE(MAX(CAST(SUBSTRING_INDEX(doc_no,'/',-1) AS UNSIGNED)),0) n FROM stock_adjustments WHERE org_id=? AND doc_no LIKE 'ADJ/%'", [ORG]);
-  const no = \`ADJ/25-26/\${String(mx[0].n + 1).padStart(5,'0')}\`;
+  const no = `ADJ/25-26/\${String(mx[0].n + 1).padStart(5,'0')}`;
   const [ins] = await q("INSERT INTO stock_adjustments (org_id,doc_no,warehouse_id,item_id,batch_id,adjustment_date,reason,qty,value,status,submitted_by,submitted_at) VALUES (?,?,?,?,?,NOW(),?,?,?,?,?,NOW())",
     [ORG,no,warehouseId,itemId,batchId,reason,Number(qty),Number(value||0),"PENDING",req.user?.name || "Owner"]);
   res.status(201).json({ id:ins.insertId,docNo:no });
@@ -393,9 +393,9 @@ r.get("/parties/list", async (req, res) => {
   const type = String(req.query.type || "").toUpperCase();
   const where = ["p.org_id=?"];
   const params = [ORG];
-  if (search) { where.push("(p.name LIKE ? OR p.gstin LIKE ? OR p.mobile LIKE ?)"); params.push(\`%\${search}%\`,\`%\${search}%\`,\`%\${search}%\`); }
+  if (search) { where.push("(p.name LIKE ? OR p.gstin LIKE ? OR p.mobile LIKE ?)"); params.push(`%\${search}%`,`%\${search}%`,`%\${search}%`); }
   if (type && ["CUSTOMER","SUPPLIER"].includes(type)) { where.push("p.party_type=?"); params.push(type); }
-  const rows = await q(\`
+  const rows = await q(`
     SELECT p.id,p.name,p.party_type,p.gstin,p.mobile,p.credit_limit,p.status,p.preferred,
       COALESCE(SUM(i.balance_due),0) outstanding
     FROM parties p
@@ -404,7 +404,7 @@ r.get("/parties/list", async (req, res) => {
     GROUP BY p.id
     ORDER BY p.party_type='CUSTOMER' DESC,p.name
     LIMIT 100
-  \`, params);
+  `, params);
   const [customers] = await q("SELECT COUNT(*) n,SUM(gstin IS NOT NULL AND gstin<>'') gst FROM parties WHERE org_id=? AND party_type='CUSTOMER'", [ORG]);
   const [suppliers] = await q("SELECT COUNT(*) n,SUM(preferred=1) preferred FROM parties WHERE org_id=? AND party_type='SUPPLIER'", [ORG]);
   const [receivables] = await q("SELECT COALESCE(SUM(balance_due),0) value,COUNT(*) n FROM invoices WHERE org_id=? AND balance_due>0", [ORG]);
@@ -414,7 +414,7 @@ r.get("/parties/list", async (req, res) => {
 
 // ---------- Warehouses / godowns ----------
 r.get("/warehouses/list", async (_req, res) => {
-  const rows = await q(\`
+  const rows = await q(`
     SELECT w.id,w.name,w.notes,w.allow_negative,w.default_uom,w.default_reorder,w.max_stock,w.active_skus,
       COALESCE(SUM(b.qty_on_hand*b.unit_cost),0) stock_value,
       COUNT(DISTINCT b.item_id) live_skus,
@@ -424,7 +424,7 @@ r.get("/warehouses/list", async (_req, res) => {
     WHERE w.org_id=? AND w.active=1
     GROUP BY w.id
     ORDER BY w.id
-  \`, [ORG]);
+  `, [ORG]);
   res.json({ rows });
 });
 
@@ -452,7 +452,7 @@ r.get("/reports", async (req, res) => {
   const [sales] = await q("SELECT COALESCE(SUM(taxable),0) taxable,COALESCE(SUM(cgst+sgst+igst),0) gst FROM invoices WHERE org_id=? AND DATE_FORMAT(invoice_date,'%Y-%m')=?", [ORG,monthPrefix]);
   const [receivables] = await q("SELECT COALESCE(SUM(balance_due),0) value,COUNT(*) n FROM invoices WHERE org_id=? AND balance_due>0", [ORG]);
   const [gstr] = await q("SELECT COUNT(*) n FROM invoices WHERE org_id=? AND DATE_FORMAT(invoice_date,'%Y-%m')=? AND balance_due>0", [ORG,monthPrefix]);
-  const rows = await q(\`
+  const rows = await q(`
     SELECT i.doc_no invoice_no,i.invoice_date,p.name recipient,p.gstin,i.taxable,(i.cgst+i.sgst+i.igst) gst,
       w.name godown,
       CASE
@@ -466,7 +466,7 @@ r.get("/reports", async (req, res) => {
     WHERE i.org_id=? AND DATE_FORMAT(i.invoice_date,'%Y-%m')=?
     ORDER BY i.invoice_date DESC,i.id DESC
     LIMIT 100
-  \`, [ORG,monthPrefix]);
+  `, [ORG,monthPrefix]);
   const [stock] = await q("SELECT COALESCE(SUM(qty_on_hand*unit_cost),0) value FROM batches", []);
   res.json({
     month: monthPrefix,
@@ -480,7 +480,7 @@ r.get("/reports", async (req, res) => {
     reports: [
       { key:"sales",title:"Sales register",description:"Invoice-level sales by customer, GST rate, godown and taxable amount.",status:"Ready" },
       { key:"stock",title:"Stock valuation",description:"Weighted-average valuation by item, batch and godown.",status:"Ready" },
-      { key:"outstanding",title:"Outstanding report",description:"Ageing, due dates and customer-wise balance with receipts.",status:\`\${receivables.n} overdue\` },
+      { key:"outstanding",title:"Outstanding report",description:"Ageing, due dates and customer-wise balance with receipts.",status:`\${receivables.n} overdue` },
       { key:"gstr",title:"GSTR-1",description:"B2B, B2C, credit/debit notes and filing validation checks.",status:"Needs review" },
     ],
     rows,
@@ -500,12 +500,12 @@ r.put("/settings", async (req, res) => {
   const c = await pool.getConnection();
   try {
     await c.beginTransaction();
-    await c.query(\`UPDATE organizations SET
+    await c.query(`UPDATE organizations SET
       name=COALESCE(?,name),gstin=COALESCE(?,gstin),state_code=COALESCE(?,state_code),address=COALESCE(?,address),
       require_credit_override=COALESCE(?,require_credit_override),
       require_batch_reason=COALESCE(?,require_batch_reason),
       eway_threshold=COALESCE(?,eway_threshold)
-      WHERE id=?\`,
+      WHERE id=?`,
       [b.name,b.gstin,b.stateCode,b.address,
        b.requireCreditOverride == null ? null : Number(Boolean(b.requireCreditOverride)),
        b.requireBatchReason == null ? null : Number(Boolean(b.requireBatchReason)),
