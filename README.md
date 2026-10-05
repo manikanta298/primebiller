@@ -12,54 +12,49 @@ primebiller/
 │   ├── package.json
 │   └── vite.config.js
 │
-├── backend/                  # Better Auth + Express authentication server
+├── backend/                  # Express + MySQL authentication/API server
 │   ├── auth.js
-│   ├── email.js
 │   ├── server.js
-│   ├── seed-demo.js
+│   ├── scripts/
 │   └── package.json
 │
 └── README.md
 ```
 
 ## Stack
-React + Vite (frontend) · Node.js + Express (API) · MySQL 8.0.16+ (database) · Better Auth (sessions).
+React + Vite (frontend) · Node.js + Express (API) · MySQL 8.0.16+ (database) · first-party scrypt authentication + HTTP-only sessions.
 
 ## Quick start
 ```bash
-cd backend && npm install && cp .env.example .env   # set DATABASE_URL + BETTER_AUTH_SECRET
-npm run setup      # schema -> auth tables -> dummy logins -> demo data
+cd backend && npm install && cp .env.example .env   # set DATABASE_URL + FRONTEND_URL
+npm run setup      # schema -> auth tables -> demo data
 npm run dev        # API on :3005
 cd ../frontend && npm install && cp .env.example .env && npm run dev   # UI on :5173
 ```
 
-## Dummy login
+## Authentication bootstrap
 
-The deployed login flow is intentionally limited to the single account configured by `DEMO_EMAIL` and seeded from `DUMMY_PASSWORD`. Do not commit either value to Git.
+The application now uses a registration-first authentication flow.
 
-Set these environment variables on Render:
+- The first **successfully OTP-verified registration** becomes `MASTER_ADMIN`.
+- That master-admin assignment is stored in `auth_bootstrap.master_admin_user_id` and protected by a database lock/foreign key so another concurrent registration cannot claim it.
+- All later registrations receive the `USER` role.
+- Normal email/password sign-in is available only after the registration OTP has been verified.
+- Sessions use HTTP-only cookies with secure production flags.
+- Passwords use Node.js `scrypt` hashing.
+- Registration and password-reset OTPs are 6-digit cryptographically random values, stored only as SHA-256 hashes, expire automatically, and allow a maximum of five failed attempts.
+- OTP delivery is currently **Render log-only**: the raw 6-digit code is printed to the API logs and no SMTP service is required. OTP generation/logging is synchronous only with database writes and does not throw a mail-delivery exception, so an SMTP outage cannot crash the authentication request.
+- Registration OTP requests are throttled to one request per email per 60 seconds.
 
-- `DEMO_EMAIL` — the exact dummy email accepted by sign-in and password recovery.
-- `DUMMY_PASSWORD` — the exact initial dummy password used by `npm run seed:demo`.
-- `VITE_DEMO_EMAIL` — the same email for the frontend login form.
+### Render configuration
 
-Run `npm run setup` after setting the backend variables so the dummy account exists in MySQL.
+No SMTP variables are required for the current authentication flow. Keep `DATABASE_URL`, `FRONTEND_URL`, and the normal Render/Vite deployment variables configured.
 
-### Dummy-email OTP testing
+When a registration or password-reset OTP is requested, look in the Render service logs for a line like:
 
-For the configured `DEMO_EMAIL`, every password-reset OTP is:
+`[otp] registration OTP for user@example.com: 123456 (expires in 10 minutes, id=42)`
 
-1. printed immediately in the Render API logs as `[otp] ... OTP generated ...`;
-2. stored in `password_reset_otps.otp_code` alongside its hashed value used for verification;
-3. valid for 5 minutes and limited to 5 failed attempts.
-
-The raw `otp_code` column is intentionally scoped to this testing/demo flow. Use a hash-only OTP store for a production authentication system.
-
-If no mail provider is configured, the OTP is logged and the request can still be completed. On Render, Brevo or Resend can be used for HTTPS-based email delivery.
-
-## Development-login status
-
-The old developer-access/bypass login has been removed. There is no separate developer key or bypass endpoint in the login flow.
+The raw OTP is intentionally **not persisted** in the database; only its SHA-256 hash is stored. This is safer than keeping plaintext OTPs in MySQL while still supporting the requested Render-log testing workflow.
 
 ## Build status
 | Screen | Status |
