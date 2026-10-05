@@ -19,6 +19,7 @@ async function request(path, options = {}) {
 
 export const auth = {
   getSession: () => request("/api/auth/get-session"),
+  getConfig: () => request("/api/auth/config"),
   signIn: ({ email, password, rememberMe = true }) =>
     request("/api/auth/sign-in/email", {
       method: "POST",
