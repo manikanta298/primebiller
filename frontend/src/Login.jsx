@@ -51,6 +51,19 @@ export default function Login({ onSignedIn }) {
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(true);
   const [email, setEmail] = useState(DEMO_EMAIL);
+  useEffect(() => {
+    let mounted = true;
+    auth.getConfig()
+      .then((config) => {
+        const configuredEmail = String(config?.demoEmail || "").trim();
+        if (mounted && configuredEmail) {
+          setEmail(configuredEmail);
+          setResetEmail(configuredEmail);
+        }
+      })
+      .catch(() => {});
+    return () => { mounted = false; };
+  }, []);
   const [password, setPassword] = useState('');
   const [authMessage, setAuthMessage] = useState('');
   const [authError, setAuthError] = useState('');
@@ -251,7 +264,7 @@ export default function Login({ onSignedIn }) {
             <label htmlFor="email">Email address</label>
             <div className="input-wrap">
               <MailIcon />
-              <input id="email" type="email" autoComplete="email" placeholder="you@company.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
+              <input id="email" type="email" autoComplete="email" placeholder="Demo email" value={email} onChange={(e) => setEmail(e.target.value)} required />
             </div>
 
             <div className="password-label-row">
@@ -315,7 +328,7 @@ export default function Login({ onSignedIn }) {
                     type="email"
                     autoComplete="email"
                     value={resetEmail}
-                    onChange={(event) => setResetEmail(event.target.value)}
+                    readOnly
                     required
                   />
                   <button className="reset-primary" type="submit" disabled={isResetting} aria-busy={isResetting}>

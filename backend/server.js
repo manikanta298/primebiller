@@ -38,6 +38,11 @@ app.get("/api/health/db", async (_req, res) => {
   }
 });
 
+app.get("/api/auth/config", (_req, res) => {
+  const demoEmail = String(process.env.DEMO_EMAIL || "").trim().toLowerCase();
+  res.json({ demoEmail });
+});
+
 app.get("/api/auth/get-session", async (req, res) => {
   try {
     res.json((await getSession(req)) || null);
