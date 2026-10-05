@@ -8,7 +8,7 @@ const sql = fs.readFileSync(path.join(__dirname, "../sql/pending.sql"), "utf8");
 
 const alterAdd = async (table, column, definition) => {
   try {
-    await pool.query(`ALTER TABLE \${table} ADD COLUMN \${column} \${definition}`);
+    await pool.query(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
   } catch (error) {
     if (error.code !== "ER_DUP_FIELDNAME") throw error;
   }
