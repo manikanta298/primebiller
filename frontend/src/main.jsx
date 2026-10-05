@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { auth } from './auth';
 import Login from './Login.jsx';
+import Registration from './Registration.jsx';
 import Shell from './Shell.jsx';
 import './styles.css';
 import './girder.css';
@@ -10,6 +11,7 @@ function Root() {
   const [session, setSession] = useState(null);
   const [isPending, setIsPending] = useState(true);
   const [route, setRoute] = useState(location.hash.slice(1) || '/dashboard');
+  const [authView, setAuthView] = useState('login');
 
   useEffect(() => {
     let mounted = true;
@@ -32,7 +34,11 @@ function Root() {
   };
 
   if (isPending) return null;
-  if (!session) return <Login onSignedIn={handleSignedIn} />;
+  if (!session) {
+    return authView === 'register'
+      ? <Registration onRegistered={handleSignedIn} onBackToLogin={() => setAuthView('login')} />
+      : <Login onSignedIn={handleSignedIn} onRegister={() => setAuthView('register')} />;
+  }
   return <Shell route={route} user={session.user} onSignOut={handleSignOut} />;
 }
 
