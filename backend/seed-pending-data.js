@@ -15,18 +15,18 @@ try {
   );
 
   await ex(
-    "UPDATE warehouses SET active=1,default_uom=CASE name WHEN 'Balanagar Godown' THEN 'BAG' WHEN 'Jeedimetla Yard' THEN 'CFT' ELSE 'NOS' END,
+    `UPDATE warehouses SET active=1,default_uom=CASE name WHEN 'Balanagar Godown' THEN 'BAG' WHEN 'Jeedimetla Yard' THEN 'CFT' ELSE 'NOS' END,
       default_reorder=CASE name WHEN 'Balanagar Godown' THEN 500 WHEN 'Jeedimetla Yard' THEN 100 ELSE 60 END,
       max_stock=CASE name WHEN 'Balanagar Godown' THEN 3000 WHEN 'Jeedimetla Yard' THEN 800 ELSE 400 END,
       active_skus=CASE name WHEN 'Balanagar Godown' THEN 1421 WHEN 'Jeedimetla Yard' THEN 386 ELSE 214 END
-      WHERE org_id=?",
+      WHERE org_id=?`,
     [org.id],
   );
 
-  await ex("UPDATE parties SET party_type=CASE WHEN name IN ('UltraTech Cement','Century Ply') THEN 'SUPPLIER' ELSE 'CUSTOMER' END,
+  await ex(`UPDATE parties SET party_type=CASE WHEN name IN ('UltraTech Cement','Century Ply') THEN 'SUPPLIER' ELSE 'CUSTOMER' END,
       status=CASE WHEN name='Rajesh Constructions' THEN 'CREDIT_WATCH' ELSE 'ACTIVE' END,
       preferred=CASE WHEN name IN ('UltraTech Cement','Century Ply') THEN 1 ELSE 0 END
-      WHERE org_id=?", [org.id]);
+      WHERE org_id=?`, [org.id]);
 
   // Expand the party master to the counts shown in the reference screen.
   const [[cc]] = await c.query("SELECT COUNT(*) n FROM parties WHERE org_id=? AND party_type='CUSTOMER'", [org.id]);
