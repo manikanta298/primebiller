@@ -70,7 +70,7 @@ const transporter =
 
 console.log(`Email provider: ${provider}`);
 
-if (transporter && !isConsoleOnly()) {
+if (transporter && !isConsoleOnly(demoEmail)) {
   transporter
     .verify()
     .then(() => {
