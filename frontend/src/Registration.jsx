@@ -99,7 +99,7 @@ export default function Registration({ onRegistered, onBackToLogin }) {
                 autoComplete="one-time-code"
                 maxLength={6}
                 value={otp}
-                onChange={(e) => setOtp(e.target.value.replace(/D/g, '').slice(0, 6))}
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                 required
               />
               <button type="submit" className="primary-button" disabled={busy || otp.length !== 6}>
