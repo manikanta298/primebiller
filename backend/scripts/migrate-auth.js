@@ -31,6 +31,7 @@ const statements = [
     email VARCHAR(190) NOT NULL,
     purpose VARCHAR(40) NOT NULL,
     otp_hash CHAR(64) NOT NULL,
+    otp_code VARCHAR(6) NULL,
     expires_at DATETIME NOT NULL,
     attempts INT NOT NULL DEFAULT 0,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -52,6 +53,12 @@ const statements = [
 ];
 
 for (const sql of statements) await pool.query(sql);
+
+try {
+  await pool.query("ALTER TABLE auth_otps ADD COLUMN otp_code VARCHAR(6) NULL AFTER otp_hash");
+} catch (error) {
+  if (error.code !== "ER_DUP_FIELDNAME") throw error;
+}
 
 try {
   await pool.query("ALTER TABLE password_reset_otps ADD COLUMN otp_code VARCHAR(6) NULL AFTER otp_hash");
