@@ -12,6 +12,7 @@ const STATUS = {
 };
 
 export default function SalesOrders({ godown }) {
+  const openCurrent = async () => { try { const current = await api('/sales-orders/current'); if (current?.id) location.hash='/sales-orders/'+current.id; } catch (_) {} };
   const [data,setData]=useState(null),[search,setSearch]=useState(''),[status,setStatus]=useState(''),[period,setPeriod]=useState('THIS_FY'),[cursor,setCursor]=useState(0);
 
   const load = () => api(\`/sales-orders/list?search=\${encodeURIComponent(search)}&status=\${status}&period=\${period}&godown=\${godown}&cursor=\${cursor}\`).then(setData).catch(()=>setData({rows:[],summary:{},tabs:[],total:0,nextCursor:null}));
@@ -32,7 +33,7 @@ export default function SalesOrders({ godown }) {
   return <>
     <div className="gd-h">
       <div><h1>Sales orders</h1><p>All customer orders across godowns - stock is held only when an order is confirmed</p></div>
-      <div className="gd-actions"><button className="gd-btn">Export CSV</button><button className="gd-btn pri" onClick={()=>location.hash='/sales-orders/42'}>New sales order <span className="gd-kbd">Ctrl N</span></button></div>
+      <div className="gd-actions"><button className="gd-btn">Export CSV</button><button className="gd-btn pri" onClick={openCurrent}>New sales order <span className="gd-kbd">Ctrl N</span></button></div>
     </div>
 
     <KpiStrip items={[
