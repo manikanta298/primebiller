@@ -50,7 +50,7 @@ const DEMO_EMAIL = import.meta.env.VITE_DEMO_EMAIL || '';
 export default function Login({ onSignedIn, onRegister }) {
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(true);
-  const [email, setEmail] = useState(DEMO_EMAIL);
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState('');
   const [authMessage, setAuthMessage] = useState('');
   const [authError, setAuthError] = useState('');
