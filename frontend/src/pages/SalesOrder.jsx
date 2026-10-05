@@ -3,11 +3,11 @@ import { api, inr, qty } from '../api';
 
 const calc = (l) => { const g = l.qty * l.rate, t = +(g * (1 - (l.disc_pct || 0) / 100)).toFixed(2); return { g, t, a: +(t * (1 + l.gst_pct / 100)).toFixed(2) }; };
 
-export default function SalesOrder() {
+export default function SalesOrder({ route }) {
   const [so, setSo] = useState(null), [lines, setLines] = useState([]), [msg, setMsg] = useState(''), [pick, setPick] = useState({ q: '', rows: [] });
   const [parties, setParties] = useState([]), [gow, setGow] = useState([]);
   const searchRef = useRef();
-  const load = async () => { const cur = await api('/sales-orders/current'); if (!cur) return; const d = await api(`/sales-orders/${cur.id}`); setSo(d); setLines(d.lines); };
+  const load = async () => { const parts = String(route || '').split('/').filter(Boolean); const id = parts[1] || null; const cur = id ? { id } : await api('/sales-orders/current'); if (!cur) return; const d = await api(`/sales-orders/${cur.id}`); setSo(d); setLines(d.lines); };
   useEffect(() => { load(); api('/warehouses').then(setGow); }, []);
   useEffect(() => { if (pick.q.length > 1) { const t = setTimeout(() => api(`/items/search?q=${encodeURIComponent(pick.q)}&godown=${so?.warehouse_id || 0}`).then((rows) => setPick((p) => ({ ...p, rows }))), 120); return () => clearTimeout(t); } }, [pick.q]);
   if (!so) return <div className="gd-soon">No open sales order.</div>;
