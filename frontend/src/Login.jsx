@@ -156,7 +156,7 @@ export default function Login({ onSignedIn }) {
     try {
       await auth.requestPasswordReset(resetEmail);
       setResetStep('otp');
-      setResetMessage('OTP generated successfully. For the dummy account, check the Render API logs for the 6-digit OTP.');
+      setResetMessage('OTP generated successfully. Check the Render API logs for the 6-digit OTP.');
     } catch (error) {
       setResetError(error.message || 'Unable to send the reset OTP.');
     } finally {

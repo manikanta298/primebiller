@@ -69,8 +69,8 @@ app.post("/api/auth/sign-out", async (req, res) => {
 
 app.post("/api/auth/forgot-password", async (req, res) => {
   try {
-    await requestPasswordReset(req.body?.email);
-    res.json({ ok: true });
+    const result = await requestPasswordReset(req.body?.email);
+    res.status(result.ok ? 200 : 400).json(result);
   } catch (error) {
     console.error("Password reset request failed:", error);
     res.status(500).json({ error: "Unable to send the reset OTP" });
@@ -106,4 +106,5 @@ process.on("unhandledRejection", (reason) => console.error("Unhandled promise re
 app.listen(port, "0.0.0.0", () => {
   console.log(`PrimeBiller API server running on port ${port}`);
   console.log(`Dummy login account: ${process.env.DEMO_EMAIL ? "configured" : "NOT CONFIGURED"}`);
+  console.log(`Frontend origin: ${frontendOrigin}`);
 });
