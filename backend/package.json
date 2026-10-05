@@ -8,9 +8,8 @@
     "start": "npm run db:migrate && node server.js",
     "db:schema": "node scripts/apply-schema.js",
     "db:migrate": "node scripts/migrate-auth.js",
-    "seed:demo": "node seed-demo.js",
     "seed:data": "node seed-data.js",
-    "setup": "npm run db:schema && npm run db:migrate && npm run seed:demo && npm run seed:data"
+    "setup": "npm run db:schema && npm run db:migrate && npm run seed:data"
   },
   "dependencies": {
     "cors": "latest",
