@@ -5,6 +5,9 @@ test('pending screen API integration suite', { skip: !process.env.DATABASE_URL }
   const express = (await import('express')).default;
   const request = (await import('supertest')).default;
   const { default: pending } = await import('../routes/pending.js');
+  const { pool } = await import('../db.js');
+
+  t.after(async () => { await pool.end(); });
 
   const app=express();
   app.use(express.json());
