@@ -45,11 +45,7 @@ function EyeIcon({ hidden }) {
     : <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12s3.5-7 9-7 9 7 9 7-3.5 7-9 7-9-7-9-7Z"/><circle cx="12" cy="12" r="2.5"/></svg>;
 }
 
-function GoogleIcon() {
-  return <svg className="google-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M21.6 12.2c0-.7-.1-1.4-.2-2H12v3.8h5.4a4.7 4.7 0 0 1-2 3.1v2.6h3.2c1.9-1.8 3-4.3 3-7.5Z"/><path fill="#34A853" d="M12 22c2.7 0 5-.9 6.6-2.4l-3.2-2.6c-.9.6-2 1-3.4 1-2.6 0-4.8-1.8-5.6-4.2H3.1v2.7A10 10 0 0 0 12 22Z"/><path fill="#FBBC05" d="M6.4 13.8a6 6 0 0 1 0-3.6V7.5H3.1a10 10 0 0 0 0 9l3.3-2.7Z"/><path fill="#EA4335" d="M12 6c1.5 0 2.8.5 3.9 1.6l2.9-2.9C17 3 14.7 2 12 2a10 10 0 0 0-8.9 5.5l3.3 2.7C7.2 7.8 9.4 6 12 6Z"/></svg>;
-}
-
-const DEMO_EMAIL = import.meta.env.VITE_DEMO_EMAIL || 'manikantakambala12@gmail.com';
+const DEMO_EMAIL = import.meta.env.VITE_DEMO_EMAIL || '';
 
 export default function Login({ onSignedIn }) {
   const [showPassword, setShowPassword] = useState(false);
@@ -68,34 +64,6 @@ export default function Login({ onSignedIn }) {
   const [resetMessage, setResetMessage] = useState('');
   const [resetError, setResetError] = useState('');
   const [isResetting, setIsResetting] = useState(false);
-
-  // Dev/test bypass: the panel only renders when the API reports it is enabled.
-  const [devEnabled, setDevEnabled] = useState(false);
-  const [devKey, setDevKey] = useState('');
-  const [devError, setDevError] = useState('');
-  const [isDevSigningIn, setIsDevSigningIn] = useState(false);
-
-  useEffect(() => {
-    let mounted = true;
-    auth.devBypassStatus().then((d) => { if (mounted) setDevEnabled(Boolean(d?.enabled)); }).catch(() => {});
-    return () => { mounted = false; };
-  }, []);
-
-  const handleDevSignIn = async (event) => {
-    event.preventDefault();
-    setDevError('');
-    setIsDevSigningIn(true);
-    try {
-      const session = await auth.devSignIn(devKey);
-      setDevKey('');
-      location.hash = '#/dashboard';
-      onSignedIn?.(session);
-    } catch (error) {
-      setDevError(error.message || 'Unable to sign in with the dev key.');
-    } finally {
-      setIsDevSigningIn(false);
-    }
-  };
 
   const dialogRef = useRef(null);
   const resetEmailRef = useRef(null);
@@ -310,23 +278,6 @@ export default function Login({ onSignedIn }) {
             <div role="alert">{authError && <p className="auth-feedback error">{authError}</p>}</div>
             <div role="status" aria-live="polite">{authMessage && !authError && <p className="auth-feedback success">{authMessage}</p>}</div>
           </form>
-
-          <div className="or-divider"><span>OR</span></div>
-          <button type="button" className="google-button"><GoogleIcon /> <span>Continue with Google</span></button>
-
-          {devEnabled && (
-            <form className="dev-bypass" onSubmit={handleDevSignIn} aria-labelledby="dev-bypass-title">
-              <h3 id="dev-bypass-title">Developer access (testing only)</h3>
-              <p id="dev-bypass-hint" className="reset-hint">Skips email and password. Disable DEV_BYPASS_KEY before going live.</p>
-              <label htmlFor="dev-key">Dev access key</label>
-              <input id="dev-key" type="password" autoComplete="off" value={devKey} onChange={(e) => setDevKey(e.target.value)} aria-describedby="dev-bypass-hint" required />
-              <button type="submit" className="dev-bypass-button" disabled={isDevSigningIn || !devKey} aria-busy={isDevSigningIn}>
-                {isDevSigningIn ? 'Signing in…' : 'Open dashboard'}
-              </button>
-              <div role="alert">{devError && <p className="auth-feedback error">{devError}</p>}</div>
-            </form>
-          )}
-        </div>
 
         <div className="legal-row">
           <div><a href="#privacy">Privacy Policy</a><span>•</span><a href="#terms">Terms of Service</a></div>
