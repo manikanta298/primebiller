@@ -81,7 +81,7 @@ export default function Shell({ route, user, onSignOut }) {
   return (
     <div className="gd-app">
       {mobileOpen && <button className="gd-nav-scrim" aria-label="Close navigation" onClick={() => setMobileOpen(false)} />}
-      <aside className={`gd-side\${mobileOpen ? ' mobile-open' : ''}`}>
+      <aside className={`gd-side${mobileOpen ? ' mobile-open' : ''}`}>
         <div className="gd-brand"><span className="gd-logo">▣</span><b>Girder</b><i>mock</i></div>
         <nav aria-label="Primary navigation">
           {NAV.map(([group, links]) => (
@@ -90,8 +90,8 @@ export default function Shell({ route, user, onSignOut }) {
               {links.map(([label, to]) => (
                 <a
                   key={to}
-                  href={`#\${to}`}
-                  className={`gd-link\${path === to ? ' on' : ''}`}
+                  href={`#${to}`}
+                  className={`gd-link${path === to ? ' on' : ''}`}
                   onClick={() => setMobileOpen(false)}
                 >
                   {label}
