@@ -47,23 +47,10 @@ function EyeIcon({ hidden }) {
 
 const DEMO_EMAIL = import.meta.env.VITE_DEMO_EMAIL || '';
 
-export default function Login({ onSignedIn }) {
+export default function Login({ onSignedIn, onRegister }) {
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(true);
-  const [email, setEmail] = useState(DEMO_EMAIL);
-  useEffect(() => {
-    let mounted = true;
-    auth.getConfig()
-      .then((config) => {
-        const configuredEmail = String(config?.demoEmail || "").trim();
-        if (mounted && configuredEmail) {
-          setEmail(configuredEmail);
-          setResetEmail(configuredEmail);
-        }
-      })
-      .catch(() => {});
-    return () => { mounted = false; };
-  }, []);
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState('');
   const [authMessage, setAuthMessage] = useState('');
   const [authError, setAuthError] = useState('');
@@ -169,7 +156,7 @@ export default function Login({ onSignedIn }) {
     try {
       await auth.requestPasswordReset(resetEmail);
       setResetStep('otp');
-      setResetMessage('OTP generated successfully. Check the Render API logs for the 6-digit OTP.');
+      setResetMessage('A one-time password was sent to your email.');
     } catch (error) {
       setResetError(error.message || 'Unable to send the reset OTP.');
     } finally {
@@ -183,7 +170,7 @@ export default function Login({ onSignedIn }) {
     setResetError('');
 
     if (!/^\d{6}$/.test(resetOtp)) {
-      setResetError('Enter the 6-digit OTP from the Render API logs.');
+      setResetError('Enter the 6-digit code from your email.');
       resetOtpRef.current?.focus();
       return;
     }
@@ -217,7 +204,7 @@ export default function Login({ onSignedIn }) {
       setResetStep('success');
       setResetMessage('Password reset successfully. You can now sign in.');
     } catch (error) {
-      setResetError(error.message || 'Invalid or expired OTP. Check the latest Render log entry for the current code.');
+      setResetError(error.message || 'Invalid or expired OTP.');
       resetOtpRef.current?.focus();
     } finally {
       setIsResetting(false);
@@ -252,7 +239,7 @@ export default function Login({ onSignedIn }) {
       <section ref={formPanelRef} className="form-panel" aria-label="Sign in">
         <div className="top-action">
           <span>New to Girder?</span>
-          <button type="button" className="contact-button">Contact us</button>
+          <button type="button" className="contact-button" onClick={onRegister}>Create account</button>
         </div>
 
         <div className="form-wrap">
@@ -264,7 +251,7 @@ export default function Login({ onSignedIn }) {
             <label htmlFor="email">Email address</label>
             <div className="input-wrap">
               <MailIcon />
-              <input id="email" type="email" autoComplete="email" placeholder="Demo email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+              <input id="email" type="email" autoComplete="email" placeholder="you@company.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
             </div>
 
             <div className="password-label-row">
@@ -319,7 +306,7 @@ export default function Login({ onSignedIn }) {
               <>
                 <p className="eyebrow">ACCOUNT RECOVERY</p>
                 <h3 id="reset-title">Reset your password</h3>
-                <p id="reset-copy" className="reset-copy">We’ll send a one-time password to your registered email address.</p>
+                <p id="reset-copy" className="reset-copy">A 6-digit one-time password will be printed in the Render API logs for your registered account.</p>
                 <form onSubmit={requestPasswordReset}>
                   <label htmlFor="reset-email">Email address</label>
                   <input
@@ -328,7 +315,7 @@ export default function Login({ onSignedIn }) {
                     type="email"
                     autoComplete="email"
                     value={resetEmail}
-                    readOnly
+                    onChange={(event) => setResetEmail(event.target.value)}
                     required
                   />
                   <button className="reset-primary" type="submit" disabled={isResetting} aria-busy={isResetting}>
@@ -343,7 +330,7 @@ export default function Login({ onSignedIn }) {
                 <p className="eyebrow">VERIFY OTP</p>
                 <h3 id="reset-title">Enter your OTP</h3>
                 <p id="reset-copy" className="reset-copy">
-                  Enter the 6-digit OTP shown in the Render API logs for <strong>{resetEmail}</strong>. The code expires in 5 minutes.
+                  Enter the 6-digit code printed in the Render API logs for <strong>{resetEmail}</strong>. The code expires in 5 minutes.
                 </p>
                 <form onSubmit={confirmPasswordReset}>
                   <label htmlFor="reset-otp">One-time password</label>
