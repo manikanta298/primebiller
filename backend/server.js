@@ -1,7 +1,7 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
-import { getSession, requireSession, signIn, signOut, requestPasswordReset, resetPassword } from "./auth.js";
+import { getSession, requireSession, signIn, signOut, requestPasswordReset, resetPassword, requestRegistrationOtp, registerUser } from "./auth.js";
 import api from "./routes/api.js";
 import { pool } from "./db.js";
 
@@ -44,6 +44,32 @@ app.get("/api/auth/get-session", async (req, res) => {
   } catch (error) {
     console.error("Session lookup failed:", error);
     res.status(500).json({ error: "Unable to load session" });
+  }
+});
+
+app.post("/api/auth/register/request-otp", async (req, res) => {
+  try {
+    const result = await requestRegistrationOtp(req.body || {});
+    res.status(result.ok ? 200 : 400).json(result);
+  } catch (error) {
+    console.error("Registration OTP failed:", error);
+    res.status(500).json({ error: "Unable to create registration OTP" });
+  }
+});
+
+app.post("/api/auth/register", async (req, res) => {
+  try {
+    const result = await registerUser(req.body || {});
+    if (!result.ok) return res.status(400).json({ error: result.error });
+    const sessionResult = await signIn(req, res, {
+      email: req.body?.email,
+      password: req.body?.password,
+      rememberMe: true,
+    });
+    res.status(201).json({ ...result, session: sessionResult.session });
+  } catch (error) {
+    console.error("Registration failed:", error);
+    res.status(500).json({ error: "Unable to complete registration" });
   }
 });
 
@@ -105,5 +131,5 @@ process.on("unhandledRejection", (reason) => console.error("Unhandled promise re
 
 app.listen(port, "0.0.0.0", () => {
   console.log(`PrimeBiller API server running on port ${port}`);
-  console.log(`Dummy login account: ${process.env.DEMO_EMAIL ? "configured" : "NOT CONFIGURED"}`);
+  console.log("Registration OTP delivery: Render log-only mode (6-digit OTPs are printed without SMTP).");
 });
