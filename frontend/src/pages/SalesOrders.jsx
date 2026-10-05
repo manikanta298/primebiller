@@ -15,7 +15,7 @@ export default function SalesOrders({ godown }) {
   const openCurrent = async () => { try { const current = await api('/sales-orders/current'); if (current?.id) location.hash='/sales-orders/'+current.id; } catch (_) {} };
   const [data,setData]=useState(null),[search,setSearch]=useState(''),[status,setStatus]=useState(''),[period,setPeriod]=useState('THIS_FY'),[cursor,setCursor]=useState(0);
 
-  const load = () => api(`/sales-orders/list?search=\${encodeURIComponent(search)}&status=\${status}&period=\${period}&godown=\${godown}&cursor=\${cursor}`).then(setData).catch(()=>setData({rows:[],summary:{},tabs:[],total:0,nextCursor:null}));
+  const load = () => api(`/sales-orders/list?search=${encodeURIComponent(search)}&status=${status}&period=${period}&godown=${godown}&cursor=${cursor}`).then(setData).catch(()=>setData({rows:[],summary:{},tabs:[],total:0,nextCursor:null}));
   useEffect(()=>{setCursor(0)},[search,status,period,godown]);
   useEffect(()=>{const t=setTimeout(load,150);return()=>clearTimeout(t)},[search,status,period,godown,cursor]);
 
@@ -37,10 +37,10 @@ export default function SalesOrders({ godown }) {
     </div>
 
     <KpiStrip items={[
-      {label:'DRAFT ORDERS',value:summary.draft?.count||0,sub:`₹\${lakh(summary.draft?.value||0)} value`},
-      {label:'CONFIRMED - STOCK HELD',value:summary.confirmed?.count||0,sub:`₹\${lakh(summary.confirmed?.value||0)}`},
-      {label:'PARTIALLY DELIVERED',value:summary.partial?.count||0,sub:`₹\${lakh(summary.partial?.value||0)}`},
-      {label:'AWAITING PAYMENT',value:summary.awaiting?.count||0,sub:`₹\${lakh(summary.awaiting?.value||0)}`,color:'var(--org)'},
+      {label:'DRAFT ORDERS',value:summary.draft?.count||0,sub:`₹${lakh(summary.draft?.value||0)} value`},
+      {label:'CONFIRMED - STOCK HELD',value:summary.confirmed?.count||0,sub:`₹${lakh(summary.confirmed?.value||0)}`},
+      {label:'PARTIALLY DELIVERED',value:summary.partial?.count||0,sub:`₹${lakh(summary.partial?.value||0)}`},
+      {label:'AWAITING PAYMENT',value:summary.awaiting?.count||0,sub:`₹${lakh(summary.awaiting?.value||0)}`,color:'var(--org)'},
     ]}/>
 
     <FilterBar>
@@ -52,7 +52,7 @@ export default function SalesOrders({ godown }) {
         <button className="gd-btn">More filters</button>
       </div>
       <div className="gd-chips gd-filter-chips">
-        {tabs.map(([k,l,n])=><button key={k} className={`gd-chip\${status===k?' on':''}`} onClick={()=>setStatus(k)}>{l} <em>{n}</em></button>)}
+        {tabs.map(([k,l,n])=><button key={k} className={`gd-chip${status===k?' on':''}`} onClick={()=>setStatus(k)}>{l} <em>{n}</em></button>)}
       </div>
     </FilterBar>
 
@@ -62,7 +62,7 @@ export default function SalesOrders({ godown }) {
         <tbody>
           {(data?.rows||[]).map(r=>{
             const [label,tone]=STATUS[r.doc_no==='SO/25-26/00035'?'OVERDUE':r.status]||[r.status,'teal'];
-            return <tr key={r.id} className="gd-row-link" onClick={()=>location.hash=`/sales-orders/\${r.id}`}>
+            return <tr key={r.id} className="gd-row-link" onClick={()=>location.hash=`/sales-orders/${r.id}`}>
               <td><span className="gd-mono"><b>{r.doc_no}</b></span><small>{dateShort(r.order_date)}</small></td>
               <td><b>{r.customer}</b>{r.gstin&&<small className="gd-mono">{r.gstin}</small>}</td>
               <td>{r.godown.split(' ')[0]}</td>
