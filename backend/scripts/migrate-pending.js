@@ -8,7 +8,7 @@ const sql = fs.readFileSync(path.join(__dirname, "../sql/pending.sql"), "utf8");
 
 const alterAdd = async (table, column, definition) => {
   try {
-    await pool.query(\`ALTER TABLE \${table} ADD COLUMN \${column} \${definition}\`);
+    await pool.query(`ALTER TABLE \${table} ADD COLUMN \${column} \${definition}`);
   } catch (error) {
     if (error.code !== "ER_DUP_FIELDNAME") throw error;
   }
@@ -29,7 +29,7 @@ await alterAdd("parties","status","ENUM('ACTIVE','ON_HOLD','CREDIT_WATCH') NOT N
 await alterAdd("parties","preferred","TINYINT(1) NOT NULL DEFAULT 0");
 
 const statements = [
-  \`CREATE TABLE IF NOT EXISTS stock_transfers (
+  `CREATE TABLE IF NOT EXISTS stock_transfers (
     id INT AUTO_INCREMENT PRIMARY KEY, org_id INT NOT NULL, doc_no VARCHAR(30) NOT NULL UNIQUE,
     from_warehouse_id INT NOT NULL, to_warehouse_id INT NOT NULL,
     transfer_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -37,14 +37,14 @@ const statements = [
     value DECIMAL(14,2) NOT NULL DEFAULT 0, pod_pending TINYINT(1) NOT NULL DEFAULT 0,
     FOREIGN KEY (from_warehouse_id) REFERENCES warehouses(id),
     FOREIGN KEY (to_warehouse_id) REFERENCES warehouses(id)
-  )\`,
-  \`CREATE TABLE IF NOT EXISTS stock_transfer_lines (
+  )`,
+  `CREATE TABLE IF NOT EXISTS stock_transfer_lines (
     id INT AUTO_INCREMENT PRIMARY KEY, transfer_id INT NOT NULL, item_id INT NOT NULL, batch_id INT NULL,
     qty DECIMAL(14,3) NOT NULL, rate DECIMAL(14,2) NOT NULL,
     FOREIGN KEY (transfer_id) REFERENCES stock_transfers(id) ON DELETE CASCADE,
     FOREIGN KEY (item_id) REFERENCES items(id)
-  )\`,
-  \`CREATE TABLE IF NOT EXISTS stock_adjustments (
+  )`,
+  `CREATE TABLE IF NOT EXISTS stock_adjustments (
     id INT AUTO_INCREMENT PRIMARY KEY, org_id INT NOT NULL, doc_no VARCHAR(30) NOT NULL UNIQUE,
     warehouse_id INT NOT NULL, item_id INT NOT NULL, batch_id INT NOT NULL,
     adjustment_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, reason VARCHAR(100) NOT NULL,
@@ -55,7 +55,7 @@ const statements = [
     FOREIGN KEY (warehouse_id) REFERENCES warehouses(id),
     FOREIGN KEY (item_id) REFERENCES items(id),
     FOREIGN KEY (batch_id) REFERENCES batches(id)
-  )\`,
+  )`,
 ];
 for (const statement of statements) await pool.query(statement);
 
