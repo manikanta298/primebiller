@@ -125,6 +125,7 @@ export async function signIn(req, res, { email, password, rememberMe = true }) {
         name: user.name,
         email: user.email,
         emailVerified: Boolean(user.email_verified),
+        role: user.role,
       },
     },
   };
