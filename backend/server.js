@@ -1,7 +1,7 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
-import { getSession, requireSession, signIn, signOut, requestPasswordReset, resetPassword, createUser, isDevBypassEnabled, devBypassSignIn, logDevBypassStatus } from "./auth.js";
+import { getSession, requireSession, signIn, signOut, requestPasswordReset, resetPassword } from "./auth.js";
 import api from "./routes/api.js";
 import { pool } from "./db.js";
 
@@ -57,32 +57,6 @@ app.post("/api/auth/sign-in/email", async (req, res) => {
   }
 });
 
-app.post("/api/auth/sign-up/email", async (req, res) => {
-  try {
-    const { name, email, password } = req.body || {};
-    const id = await createUser({ name, email, password });
-    const result = await signIn(req, res, { email, password, rememberMe: true });
-    res.status(201).json({ ...result.session, userId: id });
-  } catch (error) {
-    console.error("Sign-up failed:", error);
-    res.status(400).json({ error: error.message || "Unable to create account" });
-  }
-});
-
-app.get("/api/auth/dev-bypass-status", (_req, res) => {
-  res.json({ enabled: isDevBypassEnabled() });
-});
-
-app.post("/api/auth/dev-bypass", async (req, res) => {
-  try {
-    const result = await devBypassSignIn(req, res, req.body || {});
-    res.status(result.ok ? 200 : result.status).json(result.ok ? result.session : { error: result.error });
-  } catch (error) {
-    console.error("Dev bypass failed:", error);
-    res.status(500).json({ error: "Unable to sign in" });
-  }
-});
-
 app.post("/api/auth/sign-out", async (req, res) => {
   try {
     await signOut(req, res);
@@ -131,5 +105,5 @@ process.on("unhandledRejection", (reason) => console.error("Unhandled promise re
 
 app.listen(port, "0.0.0.0", () => {
   console.log(`PrimeBiller API server running on port ${port}`);
-  logDevBypassStatus();
+  console.log(`Dummy login account: ${process.env.DEMO_EMAIL ? "configured" : "NOT CONFIGURED"}`);
 });
