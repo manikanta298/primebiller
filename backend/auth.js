@@ -11,6 +11,7 @@ const RESET_OTP_TTL_SECONDS = 60 * 5;
 const MAX_RESET_ATTEMPTS = 5;
 
 const normalizeEmail = (email) => String(email || "").trim().toLowerCase();
+const configuredDemoEmail = () => normalizeEmail(process.env.DEMO_EMAIL);
 
 const hashPassword = async (password) => {
   const salt = crypto.randomBytes(16).toString("hex");
@@ -108,7 +109,15 @@ async function createSession(userId, rememberMe = true) {
 }
 
 export async function signIn(req, res, { email, password, rememberMe = true }) {
-  const user = await findUserByEmail(email);
+  const demoEmail = configuredDemoEmail();
+  const normalizedEmail = normalizeEmail(email);
+
+  // This deployment intentionally accepts only the configured dummy/demo account.
+  if (!demoEmail || normalizedEmail !== demoEmail) {
+    return { ok: false, error: "Invalid email or password." };
+  }
+
+  const user = await findUserByEmail(demoEmail);
   if (!user || !(await verifyPassword(password, user.password_hash))) {
     return { ok: false, error: "Invalid email or password." };
   }
@@ -164,7 +173,12 @@ export async function signOut(req, res) {
 
 export async function requestPasswordReset(email) {
   const normalizedEmail = normalizeEmail(email);
-  const user = await findUserByEmail(normalizedEmail);
+  const demoEmail = configuredDemoEmail();
+
+  // Keep the recovery surface scoped to the configured dummy account.
+  if (!demoEmail || normalizedEmail !== demoEmail) return { ok: true };
+
+  const user = await findUserByEmail(demoEmail);
 
   // Always return success to avoid exposing whether an account exists.
   if (!user) return { ok: true };
@@ -178,8 +192,8 @@ export async function requestPasswordReset(email) {
   );
   const expiresAt = new Date(Date.now() + RESET_OTP_TTL_SECONDS * 1000);
   const [inserted] = await pool.query(
-    "INSERT INTO password_reset_otps (email,otp_hash,expires_at,attempts,created_at) VALUES (?, ?, ?, 0, NOW())",
-    [normalizedEmail, otpHash, expiresAt],
+    "INSERT INTO password_reset_otps (email,otp_hash,otp_code,expires_at,attempts,created_at) VALUES (?, ?, ?, ?, 0, NOW())",
+    [normalizedEmail, otpHash, otp, expiresAt],
   );
 
   try {
@@ -206,6 +220,11 @@ const publicUser = (user) => ({
 
 export async function resetPassword(req, res, { email, otp, password }) {
   const normalizedEmail = normalizeEmail(email);
+  const demoEmail = configuredDemoEmail();
+
+  if (!demoEmail || normalizedEmail !== demoEmail) {
+    return { ok: false, error: "Invalid or expired OTP." };
+  }
   const otpValue = String(otp ?? "").trim();
   if (String(password || "").length < 8) {
     return { ok: false, error: "Password must be at least 8 characters." };
@@ -264,81 +283,4 @@ export async function requireSession(req, res, next) {
     console.error("Session lookup failed:", error);
     res.status(500).json({ error: "Unable to load session" });
   }
-}
-
-/* ------------------------------------------------------------------------------------------
- * DEV / TEST LOGIN BYPASS  -  REMOVE OR LEAVE DISABLED BEFORE GOING LIVE
- *
- * Lets you open the dashboard without email + password while testing.
- * It is OFF unless DEV_BYPASS_KEY is set (at least 24 characters). There is no default key in code.
- * When NODE_ENV=production it additionally requires ALLOW_DEV_BYPASS_IN_PRODUCTION=true.
- * It creates a normal session for a dedicated test user, so every other route behaves as usual.
- * ---------------------------------------------------------------------------------------- */
-const DEV_USER_EMAIL = "dev-bypass@primebiller.local";
-const DEV_USER_NAME = "Dev Tester";
-const DEV_KEY_MIN_LENGTH = 24;
-const DEV_MAX_ATTEMPTS = 5;
-const DEV_WINDOW_MS = 15 * 60 * 1000;
-const devAttempts = new Map(); // ip -> { count, resetAt }
-
-export const isDevBypassEnabled = () => {
-  const key = String(process.env.DEV_BYPASS_KEY || "");
-  if (key.length < DEV_KEY_MIN_LENGTH) return false;
-  if (process.env.NODE_ENV === "production") {
-    return String(process.env.ALLOW_DEV_BYPASS_IN_PRODUCTION || "").toLowerCase() === "true";
-  }
-  return true;
-};
-
-export const logDevBypassStatus = () => {
-  const key = String(process.env.DEV_BYPASS_KEY || "");
-  if (isDevBypassEnabled()) {
-    console.warn("WARNING: DEV LOGIN BYPASS IS ENABLED. Anyone with DEV_BYPASS_KEY can sign in. Disable it before going live.");
-  } else if (key) {
-    console.warn(
-      key.length < DEV_KEY_MIN_LENGTH
-        ? `DEV_BYPASS_KEY is set but shorter than ${DEV_KEY_MIN_LENGTH} characters; dev bypass stays disabled.`
-        : "DEV_BYPASS_KEY is set but NODE_ENV=production without ALLOW_DEV_BYPASS_IN_PRODUCTION=true; dev bypass stays disabled.",
-    );
-  }
-};
-
-const devRateLimited = (ip) => {
-  const now = Date.now();
-  const entry = devAttempts.get(ip);
-  if (!entry || entry.resetAt <= now) {
-    devAttempts.set(ip, { count: 1, resetAt: now + DEV_WINDOW_MS });
-    return false;
-  }
-  entry.count += 1;
-  return entry.count > DEV_MAX_ATTEMPTS;
-};
-
-export async function devBypassSignIn(req, res, { key }) {
-  if (!isDevBypassEnabled()) return { ok: false, status: 404, error: "Not found" };
-
-  const ip = req.ip || "unknown";
-  if (devRateLimited(ip)) {
-    return { ok: false, status: 429, error: "Too many attempts. Try again in 15 minutes." };
-  }
-
-  // Compare digests so length differences don't leak and the comparison is constant-time.
-  const given = crypto.createHash("sha256").update(String(key || "")).digest();
-  const expected = crypto.createHash("sha256").update(String(process.env.DEV_BYPASS_KEY)).digest();
-  if (!crypto.timingSafeEqual(given, expected)) {
-    return { ok: false, status: 401, error: "Invalid dev key." };
-  }
-  devAttempts.delete(ip);
-
-  let user = await findUserByEmail(DEV_USER_EMAIL);
-  if (!user) {
-    // Random password: this account can only be entered through the bypass key.
-    await createUser({ name: DEV_USER_NAME, email: DEV_USER_EMAIL, password: crypto.randomBytes(32).toString("hex") });
-    user = await findUserByEmail(DEV_USER_EMAIL);
-  }
-
-  const session = await createSession(user.id, false);
-  setSessionCookie(req, res, session.token, session.ttl);
-  console.warn(`Dev bypass sign-in used from ${ip}`);
-  return { ok: true, session: { user: publicUser(user) } };
 }
