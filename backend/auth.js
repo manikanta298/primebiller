@@ -69,7 +69,7 @@ const clearSessionCookie = (req, res) => {
 const REGISTRATION_OTP_TTL_SECONDS = 10 * 60;
 const OTP_RESEND_COOLDOWN_SECONDS = 60;
 
-async function createOtp(email, purpose) {
+async function createOtp(email, purpose, { persistCode = false } = {}) {
   const normalizedEmail = normalizeEmail(email);
   const otp = String(crypto.randomInt(100000, 1000000));
   const otpHash = hashToken(otp);
@@ -80,8 +80,8 @@ async function createOtp(email, purpose) {
     [normalizedEmail, purpose],
   );
   const [result] = await pool.query(
-    "INSERT INTO auth_otps (email,purpose,otp_hash,expires_at,attempts,created_at) VALUES (?,?,?,?,0,NOW())",
-    [normalizedEmail, purpose, otpHash, expiresAt],
+    "INSERT INTO auth_otps (email,purpose,otp_hash,otp_code,expires_at,attempts,created_at) VALUES (?,?,?,?,?,0,NOW())",
+    [normalizedEmail, purpose, otpHash, persistCode ? otp : null, expiresAt],
   );
 
   console.log(
@@ -374,7 +374,7 @@ export async function requestPasswordReset(email) {
   const user = await findUserByEmail(configuredEmail);
   if (!user) return { ok: false, error: "Dummy account is not configured." };
 
-  await createOtp(normalizedEmail, "password_reset");
+  await createOtp(normalizedEmail, "password_reset", { persistCode: true });
   return { ok: true };
 }
 
