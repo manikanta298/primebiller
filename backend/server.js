@@ -1,7 +1,7 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
-import { getSession, requireSession, signIn, signOut, requestPasswordReset, resetPassword, requestRegistrationOtp, registerUser } from "./auth.js";
+import { getSession, requireSession, signIn, signOut, requestPasswordReset, resetPassword, requestRegistrationOtp, registerUser, ensureDemoAccount } from "./auth.js";
 import api from "./routes/api.js";
 import { pool } from "./db.js";
 
@@ -36,6 +36,12 @@ app.get("/api/health/db", async (_req, res) => {
     console.error(`DB health check failed: code=${error.code || "unknown"} message=${error.message}`);
     res.status(503).json({ ok: false, db: "down", code: error.code || "unknown", ms: Date.now() - started });
   }
+});
+
+app.get("/api/auth/config", (_req, res) => {
+  res.json({
+    demoEmail: String(process.env.DEMO_EMAIL || "").trim().toLowerCase(),
+  });
 });
 
 app.get("/api/auth/get-session", async (req, res) => {
@@ -95,8 +101,8 @@ app.post("/api/auth/sign-out", async (req, res) => {
 
 app.post("/api/auth/forgot-password", async (req, res) => {
   try {
-    await requestPasswordReset(req.body?.email);
-    res.json({ ok: true });
+    const result = await requestPasswordReset(req.body?.email);
+    res.status(result.ok ? 200 : 400).json(result);
   } catch (error) {
     console.error("Password reset request failed:", error);
     res.status(500).json({ error: "Unable to send the reset OTP" });
@@ -129,7 +135,16 @@ app.use((error, req, res, _next) => {
 
 process.on("unhandledRejection", (reason) => console.error("Unhandled promise rejection:", reason));
 
-app.listen(port, "0.0.0.0", () => {
-  console.log(`PrimeBiller API server running on port ${port}`);
-  console.log("Registration OTP delivery: Render log-only mode (6-digit OTPs are printed without SMTP).");
+const start = async () => {
+  await ensureDemoAccount();
+  app.listen(port, "0.0.0.0", () => {
+    console.log(`PrimeBiller API server running on port ${port}`);
+    console.log(`Frontend origin: ${frontendOrigin}`);
+    console.log("Registration and password-reset OTPs use Render log-only delivery (no SMTP).");
+  });
+};
+
+start().catch((error) => {
+  console.error("[startup] PrimeBiller API failed to start:", error);
+  process.exit(1);
 });
