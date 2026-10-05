@@ -16,7 +16,6 @@
     "cors": "latest",
     "dotenv": "latest",
     "express": "^5.1.0",
-    "mysql2": "latest",
-    "nodemailer": "latest"
+    "mysql2": "latest"
   }
 }
