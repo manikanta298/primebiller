@@ -50,11 +50,27 @@ const DEMO_EMAIL = import.meta.env.VITE_DEMO_EMAIL || '';
 export default function Login({ onSignedIn, onRegister }) {
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(true);
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(DEMO_EMAIL);
   const [password, setPassword] = useState('');
+
   const [authMessage, setAuthMessage] = useState('');
   const [authError, setAuthError] = useState('');
   const [isSigningIn, setIsSigningIn] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    auth.getConfig()
+      .then((config) => {
+        const configuredEmail = String(config?.demoEmail || "").trim();
+        if (!mounted || !configuredEmail) return;
+        setEmail(configuredEmail);
+        setResetEmail(configuredEmail);
+      })
+      .catch((error) => {
+        if (mounted) setAuthError(error.message || "Unable to load login configuration.");
+      });
+    return () => { mounted = false; };
+  }, []);
 
   const [resetOpen, setResetOpen] = useState(false);
   const [resetStep, setResetStep] = useState('request');
@@ -156,7 +172,7 @@ export default function Login({ onSignedIn, onRegister }) {
     try {
       await auth.requestPasswordReset(resetEmail);
       setResetStep('otp');
-      setResetMessage('A one-time password was sent to your email.');
+      setResetMessage('OTP generated. Check the Render API logs for the 6-digit code.');
     } catch (error) {
       setResetError(error.message || 'Unable to send the reset OTP.');
     } finally {
