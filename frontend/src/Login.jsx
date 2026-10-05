@@ -156,7 +156,7 @@ export default function Login({ onSignedIn }) {
     try {
       await auth.requestPasswordReset(resetEmail);
       setResetStep('otp');
-      setResetMessage('A one-time password was sent to your email.');
+      setResetMessage('OTP generated successfully. For the dummy account, check the Render API logs for the 6-digit OTP.');
     } catch (error) {
       setResetError(error.message || 'Unable to send the reset OTP.');
     } finally {
@@ -170,7 +170,7 @@ export default function Login({ onSignedIn }) {
     setResetError('');
 
     if (!/^\d{6}$/.test(resetOtp)) {
-      setResetError('Enter the 6-digit code from your email.');
+      setResetError('Enter the 6-digit OTP from the Render API logs.');
       resetOtpRef.current?.focus();
       return;
     }
@@ -204,7 +204,7 @@ export default function Login({ onSignedIn }) {
       setResetStep('success');
       setResetMessage('Password reset successfully. You can now sign in.');
     } catch (error) {
-      setResetError(error.message || 'Invalid or expired OTP.');
+      setResetError(error.message || 'Invalid or expired OTP. Check the latest Render log entry for the current code.');
       resetOtpRef.current?.focus();
     } finally {
       setIsResetting(false);
@@ -330,7 +330,7 @@ export default function Login({ onSignedIn }) {
                 <p className="eyebrow">VERIFY OTP</p>
                 <h3 id="reset-title">Enter your OTP</h3>
                 <p id="reset-copy" className="reset-copy">
-                  Enter the 6-digit code sent to <strong>{resetEmail}</strong>. The code expires in 5 minutes.
+                  Enter the 6-digit OTP shown in the Render API logs for <strong>{resetEmail}</strong>. The code expires in 5 minutes.
                 </p>
                 <form onSubmit={confirmPasswordReset}>
                   <label htmlFor="reset-otp">One-time password</label>
