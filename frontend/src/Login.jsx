@@ -47,7 +47,7 @@ function EyeIcon({ hidden }) {
 
 const DEMO_EMAIL = import.meta.env.VITE_DEMO_EMAIL || '';
 
-export default function Login({ onSignedIn }) {
+export default function Login({ onSignedIn, onRegister }) {
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(true);
   const [email, setEmail] = useState(DEMO_EMAIL);
@@ -239,7 +239,7 @@ export default function Login({ onSignedIn }) {
       <section ref={formPanelRef} className="form-panel" aria-label="Sign in">
         <div className="top-action">
           <span>New to Girder?</span>
-          <button type="button" className="contact-button">Contact us</button>
+          <button type="button" className="contact-button" onClick={onRegister}>Create account</button>
         </div>
 
         <div className="form-wrap">
