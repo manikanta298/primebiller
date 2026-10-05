@@ -31,8 +31,8 @@ try {
   // Expand the party master to the counts shown in the reference screen.
   const [[cc]] = await c.query("SELECT COUNT(*) n FROM parties WHERE org_id=? AND party_type='CUSTOMER'", [org.id]);
   for (let i = Number(cc.n) + 1; i <= 186; i++) {
-    const gstin = i <= 174 ? \`36DUMMYSTORE\${String(i).padStart(2,'0')}\`.slice(0,15) : null;
-    const status = i <= 7 + 3 ? 'ON_HOLD' : 'ACTIVE';
+    const gstin = i <= 175 ? \`36DUMMYSTORE\${String(i).padStart(2,'0')}\`.slice(0,15) : null;
+    const status = i <= 7 ? 'ON_HOLD' : 'ACTIVE';
     await ex(
       "INSERT INTO parties (org_id,name,gstin,mobile,credit_limit,party_type,status,preferred) VALUES (?,?,?,?,?,'CUSTOMER',?,0)",
       [org.id, \`Customer \${String(i).padStart(3,'0')}\`, gstin, \`90000\${String(10000+i).slice(-5)}\`, 200000, status],
