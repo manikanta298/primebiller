@@ -12,23 +12,22 @@ primebiller/
 │   ├── package.json
 │   └── vite.config.js
 │
-├── backend/                  # Better Auth + Express authentication server
+├── backend/                  # Express + MySQL authentication/API server
 │   ├── auth.js
-│   ├── email.js
 │   ├── server.js
-│   ├── seed-demo.js
+│   ├── scripts/
 │   └── package.json
 │
 └── README.md
 ```
 
 ## Stack
-React + Vite (frontend) · Node.js + Express (API) · MySQL 8.0.16+ (database) · Better Auth (sessions).
+React + Vite (frontend) · Node.js + Express (API) · MySQL 8.0.16+ (database) · first-party scrypt authentication + HTTP-only sessions.
 
 ## Quick start
 ```bash
-cd backend && npm install && cp .env.example .env   # set DATABASE_URL + BETTER_AUTH_SECRET
-npm run setup      # schema -> auth tables -> dummy logins -> demo data
+cd backend && npm install && cp .env.example .env   # set DATABASE_URL + FRONTEND_URL
+npm run setup      # schema -> auth tables -> demo data
 npm run dev        # API on :3005
 cd ../frontend && npm install && cp .env.example .env && npm run dev   # UI on :5173
 ```
