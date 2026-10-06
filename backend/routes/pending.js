@@ -171,30 +171,41 @@ r.get("/ledger", async (req, res) => {
   const godown = req.query.godown && req.query.godown !== "all" ? Number(req.query.godown) : null;
   const type = String(req.query.type || "").trim().toUpperCase();
   const period = String(req.query.period || "TODAY").toUpperCase();
-  const where = ["l.org_id=?"];
-  const params = [ORG];
+  const balanceWhere = ["l.org_id=?"];
+  const balanceParams = [ORG];
   if (item) {
-    where.push("(i.name LIKE ? OR i.sku LIKE ? OR l.batch_id IN (SELECT id FROM batches WHERE batch_no LIKE ?))");
-    params.push(`%${item}%`, `%${item}%`, `%${item}%`);
+    balanceWhere.push("(i.name LIKE ? OR i.sku LIKE ? OR l.batch_id IN (SELECT id FROM batches WHERE batch_no LIKE ?))");
+    balanceParams.push(`%${item}%`, `%${item}%`, `%${item}%`);
   }
-  if (godown) { where.push("l.warehouse_id=?"); params.push(godown); }
-  if (type) { where.push("l.movement=?"); params.push(type); }
-  const pc = periodClause(period, "l.posted_at");
-  if (pc) where.push(pc);
+  if (godown) { balanceWhere.push("l.warehouse_id=?"); balanceParams.push(godown); }
+
+  const displayWhere = [];
+  const displayParams = [];
+  if (type) { displayWhere.push("movement=?"); displayParams.push(type); }
+  const pc = periodClause(period, "posted_at");
+  if (pc) displayWhere.push(pc);
 
   const rows = await q(`
-    SELECT
-      l.id,l.posted_at,l.doc_no,l.movement,l.qty,l.value,l.reason,
-      i.name item,i.sku,b.batch_no,w.name godown,i.base_uom uom,
-      ROUND(SUM(l.qty) OVER (PARTITION BY l.warehouse_id,l.item_id ORDER BY l.posted_at,l.id ROWS UNBOUNDED PRECEDING),3) balance_qty
-    FROM stock_ledger l
-    JOIN items i ON i.id=l.item_id
-    LEFT JOIN batches b ON b.id=l.batch_id
-    JOIN warehouses w ON w.id=l.warehouse_id
-    WHERE ${where.join(" AND ")}
-    ORDER BY l.posted_at DESC,l.id DESC
+    SELECT *
+    FROM (
+      SELECT
+        l.id,l.posted_at,l.doc_no,l.movement,l.qty,l.value,l.reason,
+        i.name item,i.sku,b.batch_no,w.name godown,i.base_uom uom,
+        ROUND(SUM(l.qty) OVER (
+          PARTITION BY l.warehouse_id,l.item_id
+          ORDER BY l.posted_at,l.id
+          ROWS UNBOUNDED PRECEDING
+        ),3) balance_qty
+      FROM stock_ledger l
+      JOIN items i ON i.id=l.item_id
+      LEFT JOIN batches b ON b.id=l.batch_id
+      JOIN warehouses w ON w.id=l.warehouse_id
+      WHERE ${balanceWhere.join(" AND ")}
+    ) ledger
+    ${displayWhere.length ? `WHERE ${displayWhere.join(" AND ")}` : ""}
+    ORDER BY posted_at DESC,id DESC
     LIMIT 100
-  `, params);
+  `, [...balanceParams,...displayParams]);
 
   const [opening] = await q("SELECT COALESCE(SUM(qty_on_hand*unit_cost),0) value FROM batches", []);
   const [inwards] = await q("SELECT COALESCE(SUM(value),0) value,COALESCE(SUM(ABS(qty)),0) qty FROM stock_ledger WHERE org_id=? AND posted_at>=CURDATE() AND movement='PURCHASE'", [ORG]);
@@ -290,7 +301,7 @@ r.post("/transfers/:id/receive", async (req, res) => {
       let destId = dest[0]?.id;
       if (!destId) {
         const [ins] = await c.query(
-          "INSERT INTO batches (item_id,warehouse_id,batch_no,mfg_date,unit_cost,qty_on_hand,qty_reserved) SELECT item_id,?,batch_no,mfg_date,unit_cost,0,0 FROM batches WHERE id=?",
+          "INSERT INTO batches (item_id,warehouse_id,batch_no,mfg_date,expiry_date,unit_cost,qty_on_hand,qty_reserved) SELECT item_id,?,batch_no,mfg_date,expiry_date,unit_cost,0,0 FROM batches WHERE id=?",
           [t.to_warehouse_id,line.batch_id],
         );
         destId = ins.insertId;
@@ -349,8 +360,11 @@ const postAdjustment = async (id, user, action) => {
       await c.commit();
       return { ok:true,status:"REJECTED" };
     }
-    const [[b]] = await c.query("SELECT id,qty_on_hand,warehouse_id FROM batches WHERE id=? FOR UPDATE", [a.batch_id]);
-    if (!b) throw Object.assign(new Error("Adjustment batch not found"), { code: 422 });
+    const [[b]] = await c.query(
+      "SELECT b.id,b.qty_on_hand,b.item_id,b.warehouse_id FROM batches b JOIN warehouses w ON w.id=b.warehouse_id WHERE b.id=? AND b.item_id=? AND b.warehouse_id=? AND w.org_id=? FOR UPDATE",
+      [a.batch_id,a.item_id,a.warehouse_id,ORG],
+    );
+    if (!b) throw Object.assign(new Error("Adjustment batch does not belong to the requested item and godown"), { code: 422 });
     const next = Number(b.qty_on_hand) + Number(a.qty);
     const [[w]] = await c.query("SELECT allow_negative FROM warehouses WHERE id=?", [a.warehouse_id]);
     if (next < 0 && !w.allow_negative) throw Object.assign(new Error("Adjustment would create negative stock"), { code: 409 });
@@ -380,6 +394,11 @@ r.post("/adjustments", async (req, res) => {
   if (!warehouseId || !itemId || !batchId || !reason || !Number.isFinite(Number(qty)) || Number(qty) === 0) {
     return res.status(422).json({ error:"warehouseId, itemId, batchId, qty and reason are required" });
   }
+  const [[batch]] = await q(
+    "SELECT b.id FROM batches b JOIN warehouses w ON w.id=b.warehouse_id WHERE b.id=? AND b.item_id=? AND b.warehouse_id=? AND w.org_id=?",
+    [batchId,itemId,warehouseId,ORG],
+  );
+  if (!batch) return res.status(422).json({ error:"Batch does not belong to the requested item and godown" });
   const [mx] = await q("SELECT COALESCE(MAX(CAST(SUBSTRING_INDEX(doc_no,'/',-1) AS UNSIGNED)),0) n FROM stock_adjustments WHERE org_id=? AND doc_no LIKE 'ADJ/%'", [ORG]);
   const no = `ADJ/25-26/${String(mx[0].n + 1).padStart(5,'0')}`;
   const [ins] = await q("INSERT INTO stock_adjustments (org_id,doc_no,warehouse_id,item_id,batch_id,adjustment_date,reason,qty,value,status,submitted_by,submitted_at) VALUES (?,?,?,?,?,NOW(),?,?,?,?,?,NOW())",
@@ -394,7 +413,8 @@ r.get("/parties/list", async (req, res) => {
   const where = ["p.org_id=?"];
   const params = [ORG];
   if (search) { where.push("(p.name LIKE ? OR p.gstin LIKE ? OR p.mobile LIKE ?)"); params.push(`%${search}%`,`%${search}%`,`%${search}%`); }
-  if (type && ["CUSTOMER","SUPPLIER"].includes(type)) { where.push("p.party_type=?"); params.push(type); }
+  if (["CUSTOMER","SUPPLIER"].includes(type)) { where.push("p.party_type=?"); params.push(type); }
+  if (type === "ON_HOLD") { where.push("p.status='ON_HOLD'"); }
   const rows = await q(`
     SELECT p.id,p.name,p.party_type,p.gstin,p.mobile,p.credit_limit,p.status,p.preferred,
       COALESCE(SUM(i.balance_due),0) outstanding
