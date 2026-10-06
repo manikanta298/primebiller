@@ -224,7 +224,7 @@ r.get("/transfers", async (req, res) => {
   if (status) { where.push("t.status=?"); params.push(status); }
   const rows = await q(`
     SELECT t.id,t.doc_no,t.transfer_date,t.status,t.value,t.pod_pending,
-      f.name from_godown,toW.name to_godown,COUNT(tl.id) lines
+      f.name from_godown,toW.name to_godown,COUNT(tl.id) line_count
     FROM stock_transfers t
     JOIN warehouses f ON f.id=t.from_warehouse_id
     JOIN warehouses toW ON toW.id=t.to_warehouse_id
