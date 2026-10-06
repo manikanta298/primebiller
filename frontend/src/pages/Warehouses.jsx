@@ -3,14 +3,14 @@ import { api, inr } from '../api';
 import { Tag } from './ScreenKit';
 
 export default function Warehouses(){
-  const [data,setData]=useState(null),[editing,setEditing]=useState(null),[draft,setDraft]=useState(null),[msg,setMsg]=useState('');
-  const load=()=>api('/warehouses/list').then(setData).catch(()=>setData({rows:[]}));
-  useEffect(()=>{load()},[]);
+  const [data,setData]=useState(null),[editing,setEditing]=useState(null),[draft,setDraft]=useState(null),[msg,setMsg]=useState(''),[search,setSearch]=useState('');
+  const load=()=>api('/warehouses/list?search='+encodeURIComponent(search)).then(setData).catch(()=>setData({rows:[]}));
+  useEffect(()=>{if(search.trim().length===1)return;const t=setTimeout(load,120);return()=>clearTimeout(t)},[search]);
   const start=w=>{setEditing(w.id);setDraft({...w,allow_negative:!!w.allow_negative});setMsg('')};
   const save=async()=>{try{await api('/warehouses/'+draft.id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:draft.name,notes:draft.notes,allowNegative:draft.allow_negative,defaultUom:draft.default_uom,defaultReorder:draft.default_reorder,maxStock:draft.max_stock})});setMsg('Godown settings saved');await load();setEditing(null)}catch(e){setMsg(e.message)}};
   return <>
-    <div className="gd-h"><div><h1>Warehouses / godowns</h1><p>Manage godown controls, reorder points, negative-stock policy and stock value</p></div><div className="gd-actions"><button className="gd-btn">Import settings</button><button className="gd-btn pri">New godown</button></div></div>
-    <div className="gd-card-grid">{(data?.rows||[]).map(w=><div className="gd-card gd-godown-card" key={w.id}>
+    <div className="gd-h"><div><h1>Warehouses / godowns</h1><p>Manage godown controls, reorder points, negative-stock policy and stock value</p></div><div className="gd-actions"><a className="gd-btn" href="#/import?type=WAREHOUSES">Import warehouses</a><button className="gd-btn pri">New godown</button></div></div>
+    <div className="gd-card gd-filterbar"><div className="gd-filter-row"><label className="gd-grow"><span>Search warehouses</span><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Type at least 2 characters…" aria-label="Search warehouses" /></label><span className="gd-footnote">Search starts after 2 characters</span></div></div><div className="gd-card-grid">{(data?.rows||[]).map(w=><div className="gd-card gd-godown-card" key={w.id}>
       <div className="gd-godown-head"><div><h3>{w.name}</h3><span>{w.notes}</span></div><Tag tone={w.allow_negative?'amb':'grn'}>{w.active?'Active':'Inactive'}</Tag></div>
       <div className="gd-godown-value">₹{inr(w.stock_value,0)}</div><div className="gd-godown-sub">Stock value · {w.active_skus||w.live_skus||0} SKUs</div>
       <div className="gd-godown-meta"><span>Reorder points <b>{inr(w.default_reorder||0,0)} / SKU</b></span><span>Negative stock <b>{w.allow_negative?'Allowed':'Blocked'}</b></span><span>Alerts <b>{w.alerts||0}</b></span></div>
