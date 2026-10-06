@@ -8,7 +8,9 @@ export default function Settings(){
     setData(d);
     setDraft({
       name:d.org.name,gstin:d.org.gstin,stateCode:d.org.state_code,address:d.org.address,
-      requireCreditOverride:true,requireBatchReason:true,ewayThreshold:d.org.eway_threshold,
+      requireCreditOverride:!!d.org.require_credit_override,
+      requireBatchReason:!!d.org.require_batch_reason,
+      ewayThreshold:d.org.eway_threshold,
       warehouses:d.warehouses.map(w=>({...w,allow_negative:!!w.allow_negative}))
     });
   });
