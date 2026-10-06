@@ -1,18 +1,20 @@
 import React, { useEffect, useState } from 'react';
+import MasterFormModal from './MasterFormModal';
 import { api, inr, lakh } from '../api';
 import { KpiStrip, FilterBar, Tag, Money } from './ScreenKit';
 
 export default function Parties(){
   const [data,setData]=useState(null),[search,setSearch]=useState(''),[type,setType]=useState(''),[status,setStatus]=useState('');
   const term=search.trim().length>=2?search.trim():'';
+  const [showNew,setShowNew]=useState(false),[reload,setReload]=useState(0);
   useEffect(()=>{
     let stale=false;
     const t=setTimeout(()=>{api('/parties/list?search='+encodeURIComponent(term)+'&type='+type+'&status='+status).then(d=>{if(!stale)setData(d)}).catch(()=>{if(!stale)setData({rows:[],summary:{}})})},120);
     return()=>{stale=true;clearTimeout(t)};
-  },[term,type,status]);
+  },[term,type,status,reload]);
   const s=data?.summary||{};
   return <>
-    <div className="gd-h"><div><h1>Parties</h1><p>Customer and supplier master with GST, credit controls and outstanding balances</p></div><div className="gd-actions"><a className="gd-btn" href="#/import?type=PARTIES">Import parties</a><button className="gd-btn pri">New party</button></div></div>
+    <div className="gd-h"><div><h1>Parties</h1><p>Customer and supplier master with GST, credit controls and outstanding balances</p></div><div className="gd-actions"><a className="gd-btn" href="#/import?type=PARTIES">Import parties</a><button className="gd-btn pri" onClick={()=>setShowNew(true)}>New party</button></div></div>
     <KpiStrip items={[
       {label:'ACTIVE CUSTOMERS',value:s.customers?.n||0,sub:(s.customers?.gst||0)+' GST registered'},
       {label:'SUPPLIERS',value:s.suppliers?.n||0,sub:(s.suppliers?.preferred||0)+' preferred suppliers'},
@@ -30,5 +32,6 @@ export default function Parties(){
     <div className="gd-card gd-table-card"><div className="gd-table-scroll"><table className="gd-t"><thead><tr><th>PARTY</th><th>TYPE</th><th>GSTIN</th><th>PHONE</th><th className="gd-r">CREDIT LIMIT</th><th className="gd-r">OUTSTANDING</th><th>STATUS</th></tr></thead>
       <tbody>{(data?.rows||[]).map(r=><tr key={r.id}><td><b>{r.name}</b><small>{r.id?('Party #'+r.id):''}</small></td><td>{r.party_type==='CUSTOMER'?'Customer':'Supplier'}</td><td className="gd-mono">{r.gstin||'Unregistered'}</td><td className="gd-mono">{r.mobile||'—'}</td><td className="gd-r"><Money value={r.credit_limit}/></td><td className="gd-r"><Money value={r.outstanding}/></td><td><Tag tone={r.status==='ON_HOLD'?'red':r.status==='CREDIT_WATCH'?'amb':'grn'}>{r.status==='CREDIT_WATCH'?'Credit watch':r.status==='ON_HOLD'?'On hold':'Active'}</Tag></td></tr>)}</tbody>
     </table></div></div>
+  {showNew&&<MasterFormModal type="PARTIES" onClose={()=>setShowNew(false)} onSaved={()=>{setShowNew(false);setReload(n=>n+1)}}/>}
   </>;
 }
