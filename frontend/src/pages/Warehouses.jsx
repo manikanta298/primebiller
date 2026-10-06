@@ -4,8 +4,14 @@ import { Tag } from './ScreenKit';
 
 export default function Warehouses(){
   const [data,setData]=useState(null),[editing,setEditing]=useState(null),[draft,setDraft]=useState(null),[msg,setMsg]=useState(''),[search,setSearch]=useState('');
-  const load=()=>api('/warehouses/list?search='+encodeURIComponent(search)).then(setData).catch(()=>setData({rows:[]}));
-  useEffect(()=>{if(search.trim().length===1)return;const t=setTimeout(load,120);return()=>clearTimeout(t)},[search]);
+  const term=search.trim().length>=2?search.trim():'';
+  const [reload,setReload]=useState(0);
+  const load=()=>setReload(n=>n+1);
+  useEffect(()=>{
+    let stale=false;
+    const t=setTimeout(()=>{api('/warehouses/list?search='+encodeURIComponent(term)).then(d=>{if(!stale)setData(d)}).catch(()=>{if(!stale)setData({rows:[]})})},120);
+    return()=>{stale=true;clearTimeout(t)};
+  },[term,reload]);
   const start=w=>{setEditing(w.id);setDraft({...w,allow_negative:!!w.allow_negative});setMsg('')};
   const save=async()=>{try{await api('/warehouses/'+draft.id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:draft.name,notes:draft.notes,allowNegative:draft.allow_negative,defaultUom:draft.default_uom,defaultReorder:draft.default_reorder,maxStock:draft.max_stock})});setMsg('Godown settings saved');await load();setEditing(null)}catch(e){setMsg(e.message)}};
   return <>
