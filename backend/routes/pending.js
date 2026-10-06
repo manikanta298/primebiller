@@ -415,6 +415,28 @@ r.post("/adjustments", async (req, res) => {
   res.status(201).json({ id:ins.insertId,docNo:no });
 });
 
+// ---------- Items master list ----------
+r.get("/items/list", async (req, res) => {
+  const search = String(req.query.search || "").trim();
+  const where = ["i.org_id=?"];
+  const params = [ORG];
+  if (search.length >= 2) {
+    where.push("(i.name LIKE ? OR i.sku LIKE ? OR i.hsn LIKE ? OR i.brand LIKE ?)");
+    params.push(`%${search}%`,`%${search}%`,`%${search}%`,`%${search}%`);
+  }
+  const rows = await q(`
+    SELECT i.id,i.sku,i.name,i.brand,i.category,i.hsn,i.gst_rate,i.base_uom,i.valuation,
+      COALESCE(SUM(b.qty_on_hand),0) on_hand
+    FROM items i
+    LEFT JOIN batches b ON b.item_id=i.id
+    WHERE ${where.join(" AND ")}
+    GROUP BY i.id
+    ORDER BY i.name
+    LIMIT 200
+  `, params);
+  res.json({ rows });
+});
+
 // ---------- Parties ----------
 r.get("/parties/list", async (req, res) => {
   const search = String(req.query.search || "").trim();
