@@ -28,11 +28,11 @@ test('pending screen API integration suite', { skip: !process.env.DATABASE_URL }
     assert.ok(held.body.rows.every((row)=>row.status==='ON_HOLD'));
 
     const [[pair]] = await pool.query(
-      "SELECT a.id batch_id,a.item_id,a.warehouse_id FROM batches a JOIN batches b ON b.id<>a.id AND b.item_id<>a.item_id AND b.warehouse_id=a.warehouse_id LIMIT 1"
+      "SELECT a.id batch_id,b.item_id requested_item_id,a.warehouse_id FROM batches a JOIN batches b ON b.id<>a.id AND b.item_id<>a.item_id AND b.warehouse_id=a.warehouse_id LIMIT 1"
     );
     assert.ok(pair,'mismatched batch fixture not found');
     const invalid=await request(app).post('/adjustments').send({
-      warehouseId:pair.warehouse_id,itemId:pair.item_id,batchId:pair.batch_id,qty:1,reason:'validation test',value:1
+      warehouseId:pair.warehouse_id,itemId:pair.requested_item_id,batchId:pair.batch_id,qty:1,reason:'validation test',value:1
     });
     assert.equal(invalid.status,422);
   });
