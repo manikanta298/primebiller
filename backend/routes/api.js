@@ -4,6 +4,7 @@ import { q } from "../db.js";
 import sales from "./sales.js";
 import invoicing from "./invoicing.js";
 import fin from "./final.js";
+import pending from "./pending.js";
 
 const r = Router();
 
@@ -106,6 +107,7 @@ r.get("/search", async (req, res) => {
   res.json({ total, rows, nextCursor: Number(cursor) + rows.length < total ? Number(cursor) + rows.length : null, facets });
 });
 
+r.use(pending);
 r.use(fin);
 r.use(invoicing);
 r.use(sales);
