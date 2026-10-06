@@ -269,6 +269,11 @@ r.post("/transfers", async (req, res) => {
   const c = await pool.getConnection();
   try {
     await c.beginTransaction();
+    const [warehouses] = await c.query(
+      "SELECT id FROM warehouses WHERE id IN (?,?) AND org_id=? FOR UPDATE",
+      [fromWarehouseId,toWarehouseId,ORG],
+    );
+    if (warehouses.length !== 2) throw Object.assign(new Error("Source or destination godown is invalid"), { code: 422 });
     const [[mx]] = await c.query("SELECT COALESCE(MAX(CAST(SUBSTRING_INDEX(doc_no,'/',-1) AS UNSIGNED)),0) n FROM stock_transfers WHERE org_id=? AND doc_no LIKE 'XFR/%'", [ORG]);
     const no = `XFR/25-26/${String(mx.n + 1).padStart(5, "0")}`;
     const [ins] = await c.query("INSERT INTO stock_transfers (org_id,doc_no,from_warehouse_id,to_warehouse_id,transfer_date,status,value) VALUES (?,?,?,?,NOW(),'DRAFT',0)",
@@ -286,14 +291,18 @@ r.post("/transfers/:id/receive", async (req, res) => {
   try {
     await c.beginTransaction();
     const [[t]] = await c.query("SELECT * FROM stock_transfers WHERE id=? AND org_id=? FOR UPDATE", [req.params.id, ORG]);
-    if (!t) return res.status(404).json({ error: "Transfer not found" });
+    if (!t) throw Object.assign(new Error("Transfer not found"), { code: 404 });
     if (t.status !== "IN_TRANSIT") throw Object.assign(new Error("Only in-transit transfers can be received"), { code: 409 });
     const [lines] = await c.query(
-      "SELECT tl.*,b.batch_no,b.unit_cost FROM stock_transfer_lines tl LEFT JOIN batches b ON b.id=tl.batch_id WHERE tl.transfer_id=? ORDER BY tl.id",
+      "SELECT tl.*,b.batch_no,b.unit_cost,b.item_id batch_item_id,b.warehouse_id batch_warehouse_id,b.expiry_date FROM stock_transfer_lines tl LEFT JOIN batches b ON b.id=tl.batch_id WHERE tl.transfer_id=? ORDER BY tl.id",
       [t.id],
     );
+    if (!lines.length) throw Object.assign(new Error("Transfer has no lines to receive"), { code: 422 });
     for (const line of lines) {
       if (!line.batch_no) throw Object.assign(new Error("Transfer line is missing its source batch"), { code: 422 });
+      if (Number(line.batch_item_id) !== Number(line.item_id) || Number(line.batch_warehouse_id) !== Number(t.from_warehouse_id)) {
+        throw Object.assign(new Error("Transfer line batch does not belong to the source item and godown"), { code: 422 });
+      }
       const [dest] = await c.query(
         "SELECT id FROM batches WHERE item_id=? AND warehouse_id=? AND batch_no=? FOR UPDATE",
         [line.item_id,t.to_warehouse_id,line.batch_no],
