@@ -20,7 +20,7 @@ const normalizeRows = (type, data) => data.map((p) => Object.fromEntries(Object.
 
 const validateHeaders = (type, data) => {
   const missing = TYPES[type].columns.filter((x) => !Object.keys(data[0] || {}).includes(x));
-  return missing.length ? `Missing required CSV columns: \${missing.join(", ")}` : null;
+  return missing.length ? `Missing required CSV columns: ${missing.join(", ")}` : null;
 };
 
 const existingSets = async (type) => {
@@ -103,15 +103,15 @@ const loadTypedJob = async (id) => {
 };
 
 for (const [type, meta] of Object.entries(TYPES)) {
-  r.get(`/imports/templates/\${type.toLowerCase()}.csv`, (_req, res) => {
+  r.get(`/imports/templates/${type.toLowerCase()}.csv`, (_req, res) => {
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
-    res.setHeader("Content-Disposition", `attachment; filename="\${type.toLowerCase()}-template.csv"`);
+    res.setHeader("Content-Disposition", `attachment; filename="${type.toLowerCase()}-template.csv"`);
     const example = type === "ITEMS"
       ? ["SKU-001","Sample item","271019","18","NOS","true","FIFO","Brand","Category"]
       : type === "WAREHOUSES"
         ? ["Main Warehouse","Primary stock location","false","NOS","10","1000"]
         : ["Sample Customer","CUSTOMER","36ABCDE1234F1Z5","9876543210","50000","Net 30","ACTIVE","false"];
-    res.send(meta.columns.join(",") + "\n" + example.map((x) => `"\${String(x).replace(/"/g,'""')}"`).join(",") + "\n");
+    res.send(meta.columns.join(",") + "\n" + example.map((x) => `"${String(x).replace(/"/g,'""')}"`).join(",") + "\n");
   });
 }
 
@@ -123,7 +123,7 @@ r.post("/imports", express.text({ type: "text/csv", limit: "20mb" }), async (req
   const headerError = validateHeaders(type, data);
   if (headerError) return res.status(422).json({ error: headerError });
   const vals = await validate(type, data);
-  const [job] = await q("INSERT INTO import_jobs (org_id,filename,import_type,status,rows_total) VALUES (?,?,?,'VALIDATED',?)", [ORG, req.query.filename || `\${type.toLowerCase()}.csv`, type, data.length]);
+  const [job] = await q("INSERT INTO import_jobs (org_id,filename,import_type,status,rows_total) VALUES (?,?,?,'VALIDATED',?)", [ORG, req.query.filename || `${type.toLowerCase()}.csv`, type, data.length]);
   for (let i = 0; i < vals.length; i += 500) await q("INSERT INTO import_rows (job_id,row_no,payload,error_kind,error_msg) VALUES ?", [vals.slice(i, i + 500).map((x) => [job.insertId, ...x])]);
   res.status(201).json(await summary(job.insertId));
 });
@@ -136,7 +136,7 @@ r.get("/imports/:id", async (req, res, next) => {
 r.get("/imports/:id/rows", async (req, res, next) => {
   if (!await loadTypedJob(req.params.id)) return next();
   const only = req.query.errorsOnly !== "0";
-  res.json(await q(`SELECT row_no,payload,error_kind,error_msg,fixed FROM import_rows WHERE job_id=? \${only ? "AND error_kind IS NOT NULL AND fixed=0" : ""} ORDER BY row_no LIMIT 100 OFFSET ?`, [req.params.id, Math.max(0, Number(req.query.cursor || 0))]));
+  res.json(await q(`SELECT row_no,payload,error_kind,error_msg,fixed FROM import_rows WHERE job_id=? ${only ? "AND error_kind IS NOT NULL AND fixed=0" : ""} ORDER BY row_no LIMIT 100 OFFSET ?`, [req.params.id, Math.max(0, Number(req.query.cursor || 0))]));
 });
 
 r.patch("/imports/:id/rows/:no", async (req, res, next) => {
