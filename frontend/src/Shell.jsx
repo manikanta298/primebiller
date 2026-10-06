@@ -8,6 +8,7 @@ import DeliveryChallan from './pages/DeliveryChallan.jsx';
 import InvoiceConvert from './pages/InvoiceConvert.jsx';
 import ChallanTransit from './pages/ChallanTransit.jsx';
 import ItemDetail from './pages/ItemDetail.jsx';
+import Items from './pages/Items.jsx';
 import BulkImport from './pages/BulkImport.jsx';
 import PrintPreview from './pages/PrintPreview.jsx';
 import FindDocument from './pages/FindDocument.jsx';
@@ -32,6 +33,7 @@ const Chevron = () => <svg width="14" height="14" viewBox="0 0 20 20" fill="none
 
 const resolvePage = (route) => {
   if (route.startsWith('/sales-orders/')) return SalesOrder;
+  if (route.startsWith('/items/')) return ItemDetail;
   if (route.startsWith('/challans/transit')) return ChallanTransit;
   const path = '/' + (route.split('?')[0].split('/')[1] || 'dashboard');
   return {
@@ -45,7 +47,7 @@ const resolvePage = (route) => {
     '/ledger': StockLedger,
     '/transfers': Transfers,
     '/adjustments': Adjustments,
-    '/items': ItemDetail,
+    '/items': Items,
     '/import': BulkImport,
     '/print': PrintPreview,
     '/parties': Parties,

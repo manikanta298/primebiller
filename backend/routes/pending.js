@@ -415,6 +415,28 @@ r.post("/adjustments", async (req, res) => {
   res.status(201).json({ id:ins.insertId,docNo:no });
 });
 
+// ---------- Items master list ----------
+r.get("/items/list", async (req, res) => {
+  const search = String(req.query.search || "").trim();
+  const where = ["i.org_id=?"];
+  const params = [ORG];
+  if (search.length >= 2) {
+    where.push("(i.name LIKE ? OR i.sku LIKE ? OR i.hsn LIKE ? OR i.brand LIKE ?)");
+    params.push(`%${search}%`,`%${search}%`,`%${search}%`,`%${search}%`);
+  }
+  const rows = await q(`
+    SELECT i.id,i.sku,i.name,i.brand,i.category,i.hsn,i.gst_rate,i.base_uom,i.valuation,
+      COALESCE(SUM(b.qty_on_hand),0) on_hand
+    FROM items i
+    LEFT JOIN batches b ON b.item_id=i.id
+    WHERE ${where.join(" AND ")}
+    GROUP BY i.id
+    ORDER BY i.name
+    LIMIT 200
+  `, params);
+  res.json({ rows });
+});
+
 // ---------- Parties ----------
 r.get("/parties/list", async (req, res) => {
   const search = String(req.query.search || "").trim();
@@ -422,7 +444,7 @@ r.get("/parties/list", async (req, res) => {
   const status = String(req.query.status || "").toUpperCase();
   const where = ["p.org_id=?"];
   const params = [ORG];
-  if (search) { where.push("(p.name LIKE ? OR p.gstin LIKE ? OR p.mobile LIKE ?)"); params.push(`%${search}%`,`%${search}%`,`%${search}%`); }
+  if (search.length >= 2) { where.push("(p.name LIKE ? OR p.gstin LIKE ? OR p.mobile LIKE ?)"); params.push(`%${search}%`,`%${search}%`,`%${search}%`); }
   if (["CUSTOMER","SUPPLIER"].includes(type)) { where.push("p.party_type=?"); params.push(type); }
   const requestedStatus = status || (type === "ON_HOLD" ? "ON_HOLD" : "");
   if (["ACTIVE","ON_HOLD","CREDIT_WATCH"].includes(requestedStatus)) { where.push("p.status=?"); params.push(requestedStatus); }
@@ -444,7 +466,11 @@ r.get("/parties/list", async (req, res) => {
 });
 
 // ---------- Warehouses / godowns ----------
-r.get("/warehouses/list", async (_req, res) => {
+r.get("/warehouses/list", async (req, res) => {
+  const search = String(req.query.search || "").trim();
+  const where = ["w.org_id=?","w.active=1"];
+  const params = [ORG];
+  if (search.length >= 2) { where.push("w.name LIKE ?"); params.push(`%${search}%`); }
   const rows = await q(`
     SELECT w.id,w.name,w.notes,w.allow_negative,w.default_uom,w.default_reorder,w.max_stock,w.active_skus,
       COALESCE(SUM(b.qty_on_hand*b.unit_cost),0) stock_value,
@@ -452,10 +478,10 @@ r.get("/warehouses/list", async (_req, res) => {
       (SELECT COUNT(*) FROM stock_alerts a WHERE a.warehouse_id=w.id AND a.acknowledged_at IS NULL) alerts
     FROM warehouses w
     LEFT JOIN batches b ON b.warehouse_id=w.id
-    WHERE w.org_id=? AND w.active=1
+    WHERE ${where.join(" AND ")}
     GROUP BY w.id
     ORDER BY w.id
-  `, [ORG]);
+  `, params);
   res.json({ rows });
 });
 

@@ -5,10 +5,10 @@ import { KpiStrip, FilterBar, Tag, Money } from './ScreenKit';
 export default function Parties(){
   const [data,setData]=useState(null),[search,setSearch]=useState(''),[type,setType]=useState(''),[status,setStatus]=useState('');
   const load=()=>api('/parties/list?search='+encodeURIComponent(search)+'&type='+type+'&status='+status).then(setData).catch(()=>setData({rows:[],summary:{}}));
-  useEffect(()=>{const t=setTimeout(load,120);return()=>clearTimeout(t)},[search,type,status]);
+  useEffect(()=>{if(search.trim().length===1)return;const t=setTimeout(load,120);return()=>clearTimeout(t)},[search,type,status]);
   const s=data?.summary||{};
   return <>
-    <div className="gd-h"><div><h1>Parties</h1><p>Customer and supplier master with GST, credit controls and outstanding balances</p></div><div className="gd-actions"><button className="gd-btn">Import CSV</button><button className="gd-btn pri">New party</button></div></div>
+    <div className="gd-h"><div><h1>Parties</h1><p>Customer and supplier master with GST, credit controls and outstanding balances</p></div><div className="gd-actions"><a className="gd-btn" href="#/import?type=PARTIES">Import parties</a><button className="gd-btn pri">New party</button></div></div>
     <KpiStrip items={[
       {label:'ACTIVE CUSTOMERS',value:s.customers?.n||0,sub:(s.customers?.gst||0)+' GST registered'},
       {label:'SUPPLIERS',value:s.suppliers?.n||0,sub:(s.suppliers?.preferred||0)+' preferred suppliers'},
