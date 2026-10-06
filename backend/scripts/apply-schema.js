@@ -28,6 +28,6 @@ if (sslMode === "required" || sslMode === "verify-ca" || sslMode === "verify-ful
 }
 
 const conn = await mysql.createConnection(options);
-await conn.query(fs.readFileSync(new URL("../sql/schema.sql", import.meta.url), "utf8"));
+await conn.query(fs.readFileSync(new URL("../sql/unified-schema.sql", import.meta.url), "utf8"));
 console.log("Schema applied.");
 await conn.end();
