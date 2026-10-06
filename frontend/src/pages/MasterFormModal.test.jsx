@@ -39,10 +39,11 @@ describe('MasterFormModal', () => {
 
   it('shows the server error and highlights the field', async () => {
     apiMock.mockImplementation(async (path) => {
-      if (path === '/uoms') return { rows: [] };
+      if (path === '/uoms') return { rows: [{ code: 'NOS' }] };
       throw Object.assign(new Error('HSN must be 4, 6 or 8 digits'), { field: 'hsn' });
     });
     render(<MasterFormModal type="ITEMS" onClose={() => {}} onSaved={() => {}} />);
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Base UOM' })).toHaveTextContent('NOS'));
     fillItem({ SKU: 'A', 'Item name': 'B', 'HSN (4, 6 or 8 digits)': '12', 'GST rate %': '18' }, 'NOS');
     fireEvent.click(screen.getByText('Save'));
     expect(await screen.findByRole('alert')).toHaveTextContent('HSN must be 4, 6 or 8 digits');
