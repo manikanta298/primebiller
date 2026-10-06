@@ -31,32 +31,32 @@ const existingSets = async (type) => {
 const uomSet = async () => new Set((await q("SELECT code FROM uoms")).map((x) => String(x.code).toUpperCase()));
 
 const validateItem = (p, seen, existing, uoms) => {
-  if (!required(p,"sku")) return ["REQUIRED","SKU is required"];
-  if (!/^[A-Za-z0-9._\/-]{1,40}$/.test(p.sku)) return ["SKU","SKU must be 1–40 letters, numbers, dot, underscore, slash or hyphen"];
-  if (seen.has(p.sku.toLowerCase())) return ["DUP","Duplicate SKU within the file"];
-  if (existing.has(p.sku.toLowerCase())) return ["EXISTS","SKU already exists in this organization"];
-  if (!required(p,"name")) return ["REQUIRED","Item name is required"];
-  if (!/^(\d{4}|\d{6}|\d{8})$/.test(p.hsn)) return ["HSN","HSN must be 4, 6 or 8 digits"];
-  if (!validNumber(p.gst_rate) || Number(p.gst_rate) < 0 || Number(p.gst_rate) > 100) return ["GST","GST rate must be between 0 and 100"];
-  if (!uoms.has(String(p.base_uom).toUpperCase())) return ["UOM","Base UOM does not exist"];
-  if (p.batch_tracked && !["1","0","true","false","yes","no","y"].includes(p.batch_tracked.toLowerCase())) return ["BOOL","batch_tracked must be true/false or 1/0"];
-  if (p.valuation && !["FIFO","WAVG"].includes(p.valuation.toUpperCase())) return ["VALUATION","Valuation must be FIFO or WAVG"];
+  if (!required(p,"sku")) return ["REQUIRED","SKU is required","sku"];
+  if (!/^[A-Za-z0-9._\/-]{1,40}$/.test(p.sku)) return ["SKU","SKU must be 1–40 letters, numbers, dot, underscore, slash or hyphen","sku"];
+  if (seen.has(p.sku.toLowerCase())) return ["DUP","Duplicate SKU within the file","sku"];
+  if (existing.has(p.sku.toLowerCase())) return ["EXISTS","SKU already exists in this organization","sku"];
+  if (!required(p,"name")) return ["REQUIRED","Item name is required","name"];
+  if (!/^(\d{4}|\d{6}|\d{8})$/.test(p.hsn)) return ["HSN","HSN must be 4, 6 or 8 digits","hsn"];
+  if (!validNumber(p.gst_rate) || Number(p.gst_rate) < 0 || Number(p.gst_rate) > 100) return ["GST","GST rate must be between 0 and 100","gst_rate"];
+  if (!uoms.has(String(p.base_uom).toUpperCase())) return ["UOM","Base UOM does not exist","base_uom"];
+  if (p.batch_tracked && !["1","0","true","false","yes","no","y"].includes(p.batch_tracked.toLowerCase())) return ["BOOL","batch_tracked must be true/false or 1/0","batch_tracked"];
+  if (p.valuation && !["FIFO","WAVG"].includes(p.valuation.toUpperCase())) return ["VALUATION","Valuation must be FIFO or WAVG","valuation"];
   seen.add(p.sku.toLowerCase());
   return null;
 };
 
 const validateWarehouse = (p, seen, existing, uoms) => {
   const name = required(p,"name");
-  if (!name) return ["REQUIRED","Warehouse name is required"];
-  if (name.length > 100) return ["LENGTH","Warehouse name must be 100 characters or fewer"];
+  if (!name) return ["REQUIRED","Warehouse name is required","name"];
+  if (name.length > 100) return ["LENGTH","Warehouse name must be 100 characters or fewer","name"];
   const key = name.toLowerCase();
-  if (seen.has(key)) return ["DUP","Duplicate warehouse name within the file"];
-  if (existing.has(key)) return ["EXISTS","Warehouse name already exists in this organization"];
-  if (p.allow_negative && !["1","0","true","false","yes","no","y"].includes(p.allow_negative.toLowerCase())) return ["BOOL","allow_negative must be true/false or 1/0"];
-  if (p.default_uom && !uoms.has(p.default_uom.toUpperCase())) return ["UOM","Default UOM does not exist"];
-  if (p.default_reorder && (!validNumber(p.default_reorder) || Number(p.default_reorder) < 0)) return ["NUMBER","default_reorder must be zero or greater"];
-  if (p.max_stock && (!validNumber(p.max_stock) || Number(p.max_stock) < 0)) return ["NUMBER","max_stock must be zero or greater"];
-  if (p.max_stock && p.default_reorder && Number(p.max_stock) < Number(p.default_reorder)) return ["RANGE","max_stock cannot be less than default_reorder"];
+  if (seen.has(key)) return ["DUP","Duplicate warehouse name within the file","name"];
+  if (existing.has(key)) return ["EXISTS","Warehouse name already exists in this organization","name"];
+  if (p.allow_negative && !["1","0","true","false","yes","no","y"].includes(p.allow_negative.toLowerCase())) return ["BOOL","allow_negative must be true/false or 1/0","allow_negative"];
+  if (p.default_uom && !uoms.has(p.default_uom.toUpperCase())) return ["UOM","Default UOM does not exist","default_uom"];
+  if (p.default_reorder && (!validNumber(p.default_reorder) || Number(p.default_reorder) < 0)) return ["NUMBER","default_reorder must be zero or greater","default_reorder"];
+  if (p.max_stock && (!validNumber(p.max_stock) || Number(p.max_stock) < 0)) return ["NUMBER","max_stock must be zero or greater","max_stock"];
+  if (p.max_stock && p.default_reorder && Number(p.max_stock) < Number(p.default_reorder)) return ["RANGE","max_stock cannot be less than default_reorder","max_stock"];
   seen.add(key);
   return null;
 };
@@ -64,17 +64,17 @@ const validateWarehouse = (p, seen, existing, uoms) => {
 const gstin = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
 const validateParty = (p, seen, existing) => {
   const name = required(p,"name");
-  if (!name) return ["REQUIRED","Party name is required"];
-  if (name.length > 150) return ["LENGTH","Party name must be 150 characters or fewer"];
+  if (!name) return ["REQUIRED","Party name is required","name"];
+  if (name.length > 150) return ["LENGTH","Party name must be 150 characters or fewer","name"];
   const key = name.toLowerCase();
-  if (seen.has(key)) return ["DUP","Duplicate party name within the file"];
-  if (existing.has(key)) return ["EXISTS","Party name already exists in this organization"];
-  if (!["CUSTOMER","SUPPLIER"].includes(String(p.party_type || "CUSTOMER").toUpperCase())) return ["TYPE","party_type must be CUSTOMER or SUPPLIER"];
-  if (p.gstin && !gstin.test(p.gstin.toUpperCase())) return ["GSTIN","GSTIN format is invalid"];
-  if (p.mobile && !/^\d{10,15}$/.test(p.mobile)) return ["MOBILE","Mobile must contain 10–15 digits"];
-  if (p.credit_limit && (!validNumber(p.credit_limit) || Number(p.credit_limit) < 0)) return ["NUMBER","credit_limit must be zero or greater"];
-  if (p.status && !["ACTIVE","ON_HOLD","CREDIT_WATCH"].includes(p.status.toUpperCase())) return ["STATUS","status must be ACTIVE, ON_HOLD or CREDIT_WATCH"];
-  if (p.preferred && !["1","0","true","false","yes","no","y"].includes(p.preferred.toLowerCase())) return ["BOOL","preferred must be true/false or 1/0"];
+  if (seen.has(key)) return ["DUP","Duplicate party name within the file","name"];
+  if (existing.has(key)) return ["EXISTS","Party name already exists in this organization","name"];
+  if (!["CUSTOMER","SUPPLIER"].includes(String(p.party_type || "CUSTOMER").toUpperCase())) return ["TYPE","party_type must be CUSTOMER or SUPPLIER","party_type"];
+  if (p.gstin && !gstin.test(p.gstin.toUpperCase())) return ["GSTIN","GSTIN format is invalid","gstin"];
+  if (p.mobile && !/^\d{10,15}$/.test(p.mobile)) return ["MOBILE","Mobile must contain 10–15 digits","mobile"];
+  if (p.credit_limit && (!validNumber(p.credit_limit) || Number(p.credit_limit) < 0)) return ["NUMBER","credit_limit must be zero or greater","credit_limit"];
+  if (p.status && !["ACTIVE","ON_HOLD","CREDIT_WATCH"].includes(p.status.toUpperCase())) return ["STATUS","status must be ACTIVE, ON_HOLD or CREDIT_WATCH","status"];
+  if (p.preferred && !["1","0","true","false","yes","no","y"].includes(p.preferred.toLowerCase())) return ["BOOL","preferred must be true/false or 1/0","preferred"];
   seen.add(key);
   return null;
 };
@@ -85,7 +85,7 @@ const validate = async (type, rows) => {
   const seen = new Set();
   return rows.map((p, i) => {
     const bad = type === "ITEMS" ? validateItem(p, seen, existing, uoms) : type === "WAREHOUSES" ? validateWarehouse(p, seen, existing, uoms) : validateParty(p, seen, existing);
-    return [i + 1, JSON.stringify(p), bad?.[0] || null, bad?.[1] || null];
+    return [i + 1, JSON.stringify(p), bad?.[0] || null, bad?.[1] || null, bad?.[2] || null];
   });
 };
 
@@ -124,7 +124,7 @@ r.post("/imports", express.text({ type: "text/csv", limit: "20mb" }), async (req
   if (headerError) return res.status(422).json({ error: headerError });
   const vals = await validate(type, data);
   const job = await q("INSERT INTO import_jobs (org_id,filename,import_type,status,rows_total) VALUES (?,?,?,'VALIDATED',?)", [ORG, req.query.filename || `${type.toLowerCase()}.csv`, type, data.length]);
-  for (let i = 0; i < vals.length; i += 500) await q("INSERT INTO import_rows (job_id,row_no,payload,error_kind,error_msg) VALUES ?", [vals.slice(i, i + 500).map((x) => [job.insertId, ...x])]);
+  for (let i = 0; i < vals.length; i += 500) await q("INSERT INTO import_rows (job_id,row_no,payload,error_kind,error_msg,error_field) VALUES ?", [vals.slice(i, i + 500).map((x) => [job.insertId, ...x])]);
   res.status(201).json(await summary(job.insertId));
 });
 
@@ -136,7 +136,7 @@ r.get("/imports/:id", async (req, res, next) => {
 r.get("/imports/:id/rows", async (req, res, next) => {
   if (!await loadTypedJob(req.params.id)) return next();
   const only = req.query.errorsOnly !== "0";
-  res.json(await q(`SELECT row_no,payload,error_kind,error_msg,fixed FROM import_rows WHERE job_id=? ${only ? "AND error_kind IS NOT NULL AND fixed=0" : ""} ORDER BY row_no LIMIT 100 OFFSET ?`, [req.params.id, Math.max(0, Number(req.query.cursor || 0))]));
+  res.json(await q(`SELECT row_no,payload,error_kind,error_msg,error_field,fixed FROM import_rows WHERE job_id=? ${only ? "AND error_kind IS NOT NULL AND fixed=0" : ""} ORDER BY row_no LIMIT 100 OFFSET ?`, [req.params.id, Math.max(0, Number(req.query.cursor || 0))]));
 });
 
 r.patch("/imports/:id/rows/:no", async (req, res, next) => {
@@ -149,7 +149,7 @@ r.patch("/imports/:id/rows/:no", async (req, res, next) => {
   p[req.body.field] = String(req.body.value ?? "").trim();
   const [one] = await validate(job.import_type, [p]);
   if (one[2]) return res.status(422).json({ error: one[3] });
-  await q("UPDATE import_rows SET payload=?,error_kind=NULL,error_msg=NULL,fixed=1 WHERE job_id=? AND row_no=?", [JSON.stringify(p), req.params.id, req.params.no]);
+  await q("UPDATE import_rows SET payload=?,error_kind=NULL,error_msg=NULL,error_field=NULL,fixed=1 WHERE job_id=? AND row_no=?", [JSON.stringify(p), req.params.id, req.params.no]);
   res.json(await summary(req.params.id));
 });
 

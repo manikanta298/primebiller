@@ -21,6 +21,7 @@ await alterAdd("warehouses","active_skus","INT NOT NULL DEFAULT 0");
 await alterAdd("parties","party_type","ENUM('CUSTOMER','SUPPLIER') NOT NULL DEFAULT 'CUSTOMER'");
 await alterAdd("parties","status","ENUM('ACTIVE','ON_HOLD','CREDIT_WATCH') NOT NULL DEFAULT 'ACTIVE'");
 await alterAdd("parties","preferred","TINYINT(1) NOT NULL DEFAULT 0");
+await alterAdd("import_rows","error_field","VARCHAR(40) NULL");
 await alterAdd("import_jobs","import_type","ENUM('OPENING_STOCK','ITEMS','WAREHOUSES','PARTIES') NOT NULL DEFAULT 'OPENING_STOCK'");
 
 const statements = [
