@@ -403,8 +403,8 @@ r.post("/adjustments", async (req, res) => {
   if (!warehouseId || !itemId || !batchId || !reason || !Number.isFinite(Number(qty)) || Number(qty) === 0) {
     return res.status(422).json({ error:"warehouseId, itemId, batchId, qty and reason are required" });
   }
-  const [[batch]] = await q(
-    "SELECT b.id FROM batches b JOIN warehouses w ON w.id=b.warehouse_id WHERE b.id=? AND b.item_id=? AND b.warehouse_id=? AND w.org_id=?",
+  const [batch] = await q(
+    "SELECT b.id FROM batches b JOIN warehouses w ON w.id=b.warehouse_id WHERE b.id=? AND b.item_id=? AND b.warehouse_id=? AND w.org_id=? LIMIT 1",
     [batchId,itemId,warehouseId,ORG],
   );
   if (!batch) return res.status(422).json({ error:"Batch does not belong to the requested item and godown" });
