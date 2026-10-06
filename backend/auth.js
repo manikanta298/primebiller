@@ -374,7 +374,7 @@ export async function requestPasswordReset(email) {
   const user = await findUserByEmail(configuredEmail);
   if (!user) return { ok: false, error: "Dummy account is not configured." };
 
-  await createOtp(normalizedEmail, "password_reset", { persistCode: true });
+  await createOtp(normalizedEmail, "password_reset");
   return { ok: true };
 }
 
