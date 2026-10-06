@@ -61,8 +61,19 @@ try {
   const [[pipe]] = await c.query("SELECT id FROM items WHERE sku='PIP-AST-CPVC-1'");
   const [[adh]] = await c.query("SELECT id FROM items WHERE sku='ADH-FVC-SH-5'");
 
-  const [kb] = await c.query("SELECT id FROM batches WHERE item_id=? AND warehouse_id=? ORDER BY id LIMIT 1", [konark.id,b.id]);
-  const [tb] = await c.query("SELECT id FROM batches WHERE item_id=? AND warehouse_id=? ORDER BY id LIMIT 1", [tmt12.id,b.id]);
+  // The seeded in-transit transfer originates in Jeedimetla, so its source
+  // batches must belong to that warehouse before the receive workflow can post them.
+  await ex(
+    "INSERT INTO batches (item_id,warehouse_id,batch_no,mfg_date,expiry_date,unit_cost,qty_on_hand,qty_reserved) SELECT ?,?,?,?,?,?,?,? WHERE NOT EXISTS (SELECT 1 FROM batches WHERE item_id=? AND warehouse_id=? AND batch_no=?)",
+    [konark.id,j.id,'KN-J-2609','2026-09-01','2027-03-01',370,300,0,konark.id,j.id,'KN-J-2609'],
+  );
+  await ex(
+    "INSERT INTO batches (item_id,warehouse_id,batch_no,mfg_date,expiry_date,unit_cost,qty_on_hand,qty_reserved) SELECT ?,?,?,?,?,?,?,? WHERE NOT EXISTS (SELECT 1 FROM batches WHERE item_id=? AND warehouse_id=? AND batch_no=?)",
+    [tmt12.id,j.id,'TMT-J4402','2026-08-15','2027-02-15',58400,2,0,tmt12.id,j.id,'TMT-J4402'],
+  );
+
+  const [kb] = await c.query("SELECT id FROM batches WHERE item_id=? AND warehouse_id=? ORDER BY id LIMIT 1", [konark.id,j.id]);
+  const [tb] = await c.query("SELECT id FROM batches WHERE item_id=? AND warehouse_id=? ORDER BY id LIMIT 1", [tmt12.id,j.id]);
   const [cb] = await c.query("SELECT id FROM batches WHERE item_id=? AND warehouse_id=? ORDER BY id LIMIT 1", [cen.id,j.id]);
   const [sb] = await c.query("SELECT id FROM batches WHERE item_id=? AND warehouse_id=? ORDER BY id LIMIT 1", [sand.id,b.id]);
   const [ab] = await c.query("SELECT id FROM batches WHERE item_id=? AND warehouse_id=? ORDER BY id LIMIT 1", [adh.id,s.id]);
