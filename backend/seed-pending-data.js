@@ -61,11 +61,11 @@ try {
   const [[pipe]] = await c.query("SELECT id FROM items WHERE sku='PIP-AST-CPVC-1'");
   const [[adh]] = await c.query("SELECT id FROM items WHERE sku='ADH-FVC-SH-5'");
 
-  const [kb] = await c.query("SELECT id FROM batches WHERE item_id=? AND warehouse_id=? ORDER BY id LIMIT 1", [konark.id,b]);
-  const [tb] = await c.query("SELECT id FROM batches WHERE item_id=? AND warehouse_id=? ORDER BY id LIMIT 1", [tmt12.id,b]);
-  const [cb] = await c.query("SELECT id FROM batches WHERE item_id=? AND warehouse_id=? ORDER BY id LIMIT 1", [cen.id,j]);
-  const [sb] = await c.query("SELECT id FROM batches WHERE item_id=? AND warehouse_id=? ORDER BY id LIMIT 1", [sand.id,b]);
-  const [ab] = await c.query("SELECT id FROM batches WHERE item_id=? AND warehouse_id=? ORDER BY id LIMIT 1", [adh.id,s]);
+  const [kb] = await c.query("SELECT id FROM batches WHERE item_id=? AND warehouse_id=? ORDER BY id LIMIT 1", [konark.id,b.id]);
+  const [tb] = await c.query("SELECT id FROM batches WHERE item_id=? AND warehouse_id=? ORDER BY id LIMIT 1", [tmt12.id,b.id]);
+  const [cb] = await c.query("SELECT id FROM batches WHERE item_id=? AND warehouse_id=? ORDER BY id LIMIT 1", [cen.id,j.id]);
+  const [sb] = await c.query("SELECT id FROM batches WHERE item_id=? AND warehouse_id=? ORDER BY id LIMIT 1", [sand.id,b.id]);
+  const [ab] = await c.query("SELECT id FROM batches WHERE item_id=? AND warehouse_id=? ORDER BY id LIMIT 1", [adh.id,s.id]);
 
   const transferDefs = [
     ['00031', j.id,b.id,'2026-09-22 09:05','IN_TRANSIT',142880,1],
