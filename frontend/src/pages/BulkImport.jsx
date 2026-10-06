@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { api, base } from '../api';
 
 const TYPES = {
-  ITEMS: { label:'Items', columns:['sku','name','hsn','gst_rate','base_uom','batch_tracked','valuation','brand','category'] },
-  WAREHOUSES: { label:'Warehouses', columns:['name','notes','allow_negative','default_uom','default_reorder','max_stock'] },
-  PARTIES: { label:'Parties', columns:['name','party_type','gstin','mobile','credit_limit','terms','status','preferred'] },
+  ITEMS: { required:['sku','name','hsn','gst_rate','base_uom'], label:'Items', columns:['sku','name','hsn','gst_rate','base_uom','batch_tracked','valuation','brand','category'] },
+  WAREHOUSES: { required:['name'], label:'Warehouses', columns:['name','notes','allow_negative','default_uom','default_reorder','max_stock'] },
+  PARTIES: { required:['name'], label:'Parties', columns:['name','party_type','gstin','mobile','credit_limit','terms','status','preferred'] },
 };
 const H = {'Content-Type':'application/json'};
 const csvEscape=(v)=>`"${String(v).replace(/"/g,'""')}"`;
@@ -34,7 +34,7 @@ export default function BulkImport({ route }) {
   const downloadSample=()=>{const blob=new Blob([meta.columns.join(',')+'\n'+sample[type].map(csvEscape).join(',')+'\n'],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`${type.toLowerCase()}-sample.csv`;a.click();URL.revokeObjectURL(a.href);};
   return <>
     <div className="gd-h"><div><h1>Bulk import</h1><p>Import one master type at a time with validation before commit.</p></div><div className="gd-actions"><a className="gd-btn" href={templateUrl}>Download CSV template</a><label className="gd-btn pri">Upload {meta.label}<input type="file" accept=".csv,text/csv" hidden onChange={e=>{const f=e.target.files[0];e.target.value='';if(f)upload(f)}} /></label></div></div>
-    <div className="gd-card gd-filterbar"><div className="gd-filter-row"><label className="gd-grow"><span>Import type</span><select value={type} onChange={e=>{setType(e.target.value);setJob(null);setRows([]);setMsg('')}}><option value="ITEMS">Items</option><option value="WAREHOUSES">Warehouses</option><option value="PARTIES">Parties</option></select></label><button className="gd-btn" onClick={downloadSample}>Download sample CSV</button><span className="gd-footnote">Required columns: {meta.columns.join(', ')}</span></div></div>
+    <div className="gd-card gd-filterbar"><div className="gd-filter-row"><label className="gd-grow"><span>Import type</span><select value={type} onChange={e=>{setType(e.target.value);setJob(null);setRows([]);setMsg('')}}><option value="ITEMS">Items</option><option value="WAREHOUSES">Warehouses</option><option value="PARTIES">Parties</option></select></label><button className="gd-btn" onClick={downloadSample}>Download sample CSV</button><span className="gd-footnote">Required: {meta.required.join(', ')} · Optional: {meta.columns.filter(c=>!meta.required.includes(c)).join(', ')||'none'}</span></div></div>
     {msg&&<div className="gd-note" role="status">{msg}</div>}
     {job&&<div className="gd-card gd-table-card"><div className="gd-table-title"><b>{meta.label} import</b><span>{job.job.rows_total} rows · {job.counts.errors} errors · {job.job.status}</span></div>
       <div className="gd-table-scroll"><table className="gd-t"><thead><tr><th>ROW</th>{meta.columns.map(c=><th key={c}>{c.toUpperCase()}</th>)}<th>VALIDATION</th></tr></thead>

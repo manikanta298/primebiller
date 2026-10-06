@@ -7,9 +7,9 @@ import { parseCsv } from "../importer.js";
 const r = Router();
 
 const TYPES = {
-  ITEMS: { label: "Items", columns: ["sku","name","hsn","gst_rate","base_uom","batch_tracked","valuation","brand","category"] },
-  WAREHOUSES: { label: "Warehouses", columns: ["name","notes","allow_negative","default_uom","default_reorder","max_stock"] },
-  PARTIES: { label: "Parties", columns: ["name","party_type","gstin","mobile","credit_limit","terms","status","preferred"] },
+  ITEMS: { label: "Items", required: ["sku","name","hsn","gst_rate","base_uom"], columns: ["sku","name","hsn","gst_rate","base_uom","batch_tracked","valuation","brand","category"] },
+  WAREHOUSES: { label: "Warehouses", required: ["name"], columns: ["name","notes","allow_negative","default_uom","default_reorder","max_stock"] },
+  PARTIES: { label: "Parties", required: ["name"], columns: ["name","party_type","gstin","mobile","credit_limit","terms","status","preferred"] },
 };
 
 const normalizeType = (value) => String(value || "").trim().toUpperCase();
@@ -19,7 +19,7 @@ const validNumber = (v) => /^\d+(\.\d+)?$/.test(String(v ?? "").trim());
 const normalizeRows = (type, data) => data.map((p) => Object.fromEntries(Object.entries(p).map(([k,v]) => [String(k).trim().toLowerCase(), String(v ?? "").trim()])));
 
 const validateHeaders = (type, data) => {
-  const missing = TYPES[type].columns.filter((x) => !Object.keys(data[0] || {}).includes(x));
+  const missing = TYPES[type].required.filter((x) => !Object.keys(data[0] || {}).includes(x));
   return missing.length ? `Missing required CSV columns: ${missing.join(", ")}` : null;
 };
 
@@ -197,7 +197,7 @@ r.post("/imports/:id/commit", async (req, res, next) => {
       if (job.import_type === "ITEMS") {
         await c.query("INSERT INTO items (org_id,sku,name,brand,category,hsn,gst_rate,base_uom,batch_tracked,valuation) VALUES (?,?,?,?,?,?,?,?,?,?)", [ORG,p.sku,p.name,p.brand||null,p.category||null,p.hsn,Number(p.gst_rate),String(p.base_uom).toUpperCase(),asBool(p.batch_tracked),p.valuation ? p.valuation.toUpperCase() : "FIFO"]);
       } else if (job.import_type === "WAREHOUSES") {
-        await c.query("INSERT INTO warehouses (org_id,name,notes,allow_negative,default_uom,default_reorder,max_stock) VALUES (?,?,?,?,?,?,?)", [ORG,p.name,p.notes||null,asBool(p.allow_negative),String(p.default_uom||"NOS").toUpperCase(),Number(p.default_reorder||0),p.max_stock === "" ? null : Number(p.max_stock)]);
+        await c.query("INSERT INTO warehouses (org_id,name,notes,allow_negative,default_uom,default_reorder,max_stock) VALUES (?,?,?,?,?,?,?)", [ORG,p.name,p.notes||null,asBool(p.allow_negative),String(p.default_uom||"NOS").toUpperCase(),Number(p.default_reorder||0),p.max_stock ? Number(p.max_stock) : null]);
       } else {
         await c.query("INSERT INTO parties (org_id,name,gstin,mobile,credit_limit,terms,party_type,status,preferred) VALUES (?,?,?,?,?,?,?,?,?)", [ORG,p.name,p.gstin ? p.gstin.toUpperCase() : null,p.mobile||null,Number(p.credit_limit||0),p.terms||"Net 30",String(p.party_type||"CUSTOMER").toUpperCase(),String(p.status||"ACTIVE").toUpperCase(),asBool(p.preferred)]);
       }

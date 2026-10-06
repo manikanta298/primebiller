@@ -16,6 +16,7 @@ export function validateRow(p, { godowns, seenSkus }) {
 }
 
 export function parseCsv(text) {
+  text = String(text || "").replace(/^\uFEFF/, ""); // Excel "CSV UTF-8" files start with a BOM that would corrupt the first header
   const rows = []; let row = [], cur = "", q = false;
   for (let i = 0; i < text.length; i++) { const ch = text[i];
     if (q) { if (ch === '"' && text[i + 1] === '"') { cur += '"'; i++; } else if (ch === '"') q = false; else cur += ch; }
@@ -23,6 +24,7 @@ export function parseCsv(text) {
     else if (ch === "\n" || ch === "\r") { if (ch === "\r" && text[i + 1] === "\n") i++; row.push(cur); cur = ""; if (row.some((x) => x !== "")) rows.push(row); row = []; }
     else cur += ch; }
   if (cur || row.length) { row.push(cur); rows.push(row); }
+  if (!rows.length) return [];
   const head = rows.shift().map((h) => h.trim().toLowerCase());
   return rows.map((r) => Object.fromEntries(head.map((h, i) => [h, (r[i] ?? "").trim()])));
 }
