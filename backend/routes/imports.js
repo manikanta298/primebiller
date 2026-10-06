@@ -93,7 +93,7 @@ const summary = async (id) => {
   const [job] = await q("SELECT * FROM import_jobs WHERE id=? AND org_id=?", [id, ORG]);
   if (!job || !TYPES[job.import_type]) return null;
   const [counts] = await q("SELECT COUNT(*) total,SUM(error_kind IS NULL) valid,SUM(error_kind IS NOT NULL) errors,SUM(fixed) fixed,SUM(error_kind IS NOT NULL AND fixed=0) remaining FROM import_rows WHERE job_id=?", [id]);
-  const kinds = await q("SELECT error_kind kind,COUNT(*) AS `rows` FROM import_rows WHERE job_id=? AND error_kind IS NOT NULL GROUP BY error_kind ORDER BY rows DESC", [id]);
+  const kinds = await q("SELECT error_kind kind,COUNT(*) AS `rows` FROM import_rows WHERE job_id=? AND error_kind IS NOT NULL GROUP BY error_kind ORDER BY `rows` DESC", [id]);
   return { job, counts, kinds };
 };
 
