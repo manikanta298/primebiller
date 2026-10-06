@@ -444,7 +444,7 @@ r.get("/parties/list", async (req, res) => {
   const status = String(req.query.status || "").toUpperCase();
   const where = ["p.org_id=?"];
   const params = [ORG];
-  if (search) { where.push("(p.name LIKE ? OR p.gstin LIKE ? OR p.mobile LIKE ?)"); params.push(`%${search}%`,`%${search}%`,`%${search}%`); }
+  if (search.length >= 2) { where.push("(p.name LIKE ? OR p.gstin LIKE ? OR p.mobile LIKE ?)"); params.push(`%${search}%`,`%${search}%`,`%${search}%`); }
   if (["CUSTOMER","SUPPLIER"].includes(type)) { where.push("p.party_type=?"); params.push(type); }
   const requestedStatus = status || (type === "ON_HOLD" ? "ON_HOLD" : "");
   if (["ACTIVE","ON_HOLD","CREDIT_WATCH"].includes(requestedStatus)) { where.push("p.status=?"); params.push(requestedStatus); }
