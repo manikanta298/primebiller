@@ -123,7 +123,7 @@ r.post("/imports", express.text({ type: "text/csv", limit: "20mb" }), async (req
   const headerError = validateHeaders(type, data);
   if (headerError) return res.status(422).json({ error: headerError });
   const vals = await validate(type, data);
-  const [job] = await q("INSERT INTO import_jobs (org_id,filename,import_type,status,rows_total) VALUES (?,?,?,'VALIDATED',?)", [ORG, req.query.filename || `${type.toLowerCase()}.csv`, type, data.length]);
+  const job = await q("INSERT INTO import_jobs (org_id,filename,import_type,status,rows_total) VALUES (?,?,?,'VALIDATED',?)", [ORG, req.query.filename || `${type.toLowerCase()}.csv`, type, data.length]);
   for (let i = 0; i < vals.length; i += 500) await q("INSERT INTO import_rows (job_id,row_no,payload,error_kind,error_msg) VALUES ?", [vals.slice(i, i + 500).map((x) => [job.insertId, ...x])]);
   res.status(201).json(await summary(job.insertId));
 });
