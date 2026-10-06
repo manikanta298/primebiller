@@ -78,8 +78,8 @@ test('pending screen API integration suite', { skip: !process.env.DATABASE_URL }
     assert.equal(before.body.selected.status,'IN_TRANSIT');
     const sourceLine=before.body.selected.lines[0];
     const [[sourceBatch]]=await pool.query(
-      "SELECT expiry_date FROM batches WHERE id=? AND item_id=? AND warehouse_id=?",
-      [sourceLine.batch_id,sourceLine.item_id,before.body.selected.from_warehouse_id],
+      "SELECT expiry_date FROM batches WHERE item_id=? AND warehouse_id=? AND batch_no=?",
+      [sourceLine.item_id,before.body.selected.from_warehouse_id,sourceLine.batch_no],
     );
     assert.ok(sourceBatch,'seeded source batch must belong to the transfer origin');
     const res=await request(app).post('/transfers/'+row.id+'/receive').send({});
