@@ -79,10 +79,13 @@ const validateParty = (p, seen, existing) => {
   return null;
 };
 
-const validate = async (type, rows) => {
+const keyOf = (type, p) => String(type === "ITEMS" ? p.sku : p.name).trim().toLowerCase();
+
+// `seen` can be pre-seeded (see the PATCH route) so a single edited row is still
+// checked against the other rows in the same file.
+const validate = async (type, rows, seen = new Set()) => {
   const existing = await existingSets(type);
   const uoms = await uomSet();
-  const seen = new Set();
   return rows.map((p, i) => {
     const bad = type === "ITEMS" ? validateItem(p, seen, existing, uoms) : type === "WAREHOUSES" ? validateWarehouse(p, seen, existing, uoms) : validateParty(p, seen, existing);
     return [i + 1, JSON.stringify(p), bad?.[0] || null, bad?.[1] || null, bad?.[2] || null];
@@ -147,7 +150,9 @@ r.patch("/imports/:id/rows/:no", async (req, res, next) => {
   const p = typeof row.payload === "string" ? JSON.parse(row.payload) : row.payload;
   if (!req.body?.field || !Object.prototype.hasOwnProperty.call(p, req.body.field)) return res.status(422).json({ error: "Invalid import field" });
   p[req.body.field] = String(req.body.value ?? "").trim();
-  const [one] = await validate(job.import_type, [p]);
+  const others = await q("SELECT payload FROM import_rows WHERE job_id=? AND row_no<>? AND (error_kind IS NULL OR fixed=1)", [req.params.id, req.params.no]);
+  const seen = new Set(others.map((x) => keyOf(job.import_type, typeof x.payload === "string" ? JSON.parse(x.payload) : x.payload)));
+  const [one] = await validate(job.import_type, [p], seen);
   if (one[2]) return res.status(422).json({ error: one[3] });
   await q("UPDATE import_rows SET payload=?,error_kind=NULL,error_msg=NULL,error_field=NULL,fixed=1 WHERE job_id=? AND row_no=?", [JSON.stringify(p), req.params.id, req.params.no]);
   res.json(await summary(req.params.id));
