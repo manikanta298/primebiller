@@ -6,6 +6,7 @@ import invoicing from "./invoicing.js";
 import fin from "./final.js";
 import pending from "./pending.js";
 import typedImports from "./imports.js";
+import masters from "./masters.js";
 
 const r = Router();
 
@@ -109,6 +110,7 @@ r.get("/search", async (req, res) => {
 });
 
 r.use(typedImports);
+r.use(masters);
 r.use(pending);
 r.use(fin);
 r.use(invoicing);

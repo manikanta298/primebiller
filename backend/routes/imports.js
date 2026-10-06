@@ -6,7 +6,7 @@ import { parseCsv } from "../importer.js";
 
 const r = Router();
 
-const TYPES = {
+export const TYPES = {
   ITEMS: { label: "Items", required: ["sku","name","hsn","gst_rate","base_uom"], columns: ["sku","name","hsn","gst_rate","base_uom","batch_tracked","valuation","brand","category"] },
   WAREHOUSES: { label: "Warehouses", required: ["name"], columns: ["name","notes","allow_negative","default_uom","default_reorder","max_stock"] },
   PARTIES: { label: "Parties", required: ["name"], columns: ["name","party_type","gstin","mobile","credit_limit","terms","status","preferred"] },
@@ -16,7 +16,8 @@ const normalizeType = (value) => String(value || "").trim().toUpperCase();
 const asBool = (value) => ["1","true","yes","y"].includes(String(value || "").trim().toLowerCase()) ? 1 : 0;
 const required = (p, key) => String(p[key] ?? "").trim();
 const validNumber = (v) => /^\d+(\.\d+)?$/.test(String(v ?? "").trim());
-const normalizeRows = (type, data) => data.map((p) => Object.fromEntries(Object.entries(p).map(([k,v]) => [String(k).trim().toLowerCase(), String(v ?? "").trim()])));
+export const cleanRow = (p) => Object.fromEntries(Object.entries(p).map(([k,v]) => [String(k).trim().toLowerCase(), v === true ? "true" : v === false ? "false" : String(v ?? "").trim()]));
+const normalizeRows = (type, data) => data.map(cleanRow);
 
 const validateHeaders = (type, data) => {
   const missing = TYPES[type].required.filter((x) => !Object.keys(data[0] || {}).includes(x));
@@ -83,7 +84,7 @@ const keyOf = (type, p) => String(type === "ITEMS" ? p.sku : p.name).trim().toLo
 
 // `seen` can be pre-seeded (see the PATCH route) so a single edited row is still
 // checked against the other rows in the same file.
-const validate = async (type, rows, seen = new Set()) => {
+export const validate = async (type, rows, seen = new Set()) => {
   const existing = await existingSets(type);
   const uoms = await uomSet();
   return rows.map((p, i) => {
@@ -170,6 +171,25 @@ const existsSql = {
   PARTIES: ["SELECT 1 FROM parties WHERE org_id=? AND LOWER(TRIM(name))=? LIMIT 1", (p) => p.name.trim().toLowerCase()],
 };
 
+export const masterExists = async (c, type, p) => {
+  const [checkSql, checkKey] = existsSql[type];
+  const [dupe] = await c.query(checkSql, [ORG, checkKey(p)]);
+  return dupe.length > 0;
+};
+
+// Inserts one already-validated master record and returns its id.
+export const insertMaster = async (c, type, p) => {
+  let res;
+  if (type === "ITEMS") {
+    [res] = await c.query("INSERT INTO items (org_id,sku,name,brand,category,hsn,gst_rate,base_uom,batch_tracked,valuation) VALUES (?,?,?,?,?,?,?,?,?,?)", [ORG,p.sku,p.name,p.brand||null,p.category||null,p.hsn,Number(p.gst_rate),String(p.base_uom).toUpperCase(),asBool(p.batch_tracked),p.valuation ? p.valuation.toUpperCase() : "FIFO"]);
+  } else if (type === "WAREHOUSES") {
+    [res] = await c.query("INSERT INTO warehouses (org_id,name,notes,allow_negative,default_uom,default_reorder,max_stock) VALUES (?,?,?,?,?,?,?)", [ORG,p.name,p.notes||null,asBool(p.allow_negative),String(p.default_uom||"NOS").toUpperCase(),Number(p.default_reorder||0),p.max_stock ? Number(p.max_stock) : null]);
+  } else {
+    [res] = await c.query("INSERT INTO parties (org_id,name,gstin,mobile,credit_limit,terms,party_type,status,preferred) VALUES (?,?,?,?,?,?,?,?,?)", [ORG,p.name,p.gstin ? p.gstin.toUpperCase() : null,p.mobile||null,Number(p.credit_limit||0),p.terms||"Net 30",String(p.party_type||"CUSTOMER").toUpperCase(),String(p.status||"ACTIVE").toUpperCase(),asBool(p.preferred)]);
+  }
+  return res.insertId;
+};
+
 r.post("/imports/:id/commit", async (req, res, next) => {
   const job = await loadTypedJob(req.params.id);
   if (!job) return next();
@@ -185,22 +205,14 @@ r.post("/imports/:id/commit", async (req, res, next) => {
       return res.status(409).json({ error: "Commit is only allowed from the VALIDATED state" });
     }
     const [rows] = await c.query("SELECT row_no,payload FROM import_rows WHERE job_id=? AND (error_kind IS NULL OR fixed=1) ORDER BY row_no", [req.params.id]);
-    const [checkSql, checkKey] = existsSql[job.import_type];
     for (const x of rows) {
       const p = typeof x.payload === "string" ? JSON.parse(x.payload) : x.payload;
       // Parties and warehouses have no unique key, so re-check against the live table inside the transaction.
-      const [dupe] = await c.query(checkSql, [ORG, checkKey(p)]);
-      if (dupe.length) {
+      if (await masterExists(c, job.import_type, p)) {
         await c.rollback();
         return res.status(409).json({ error: `Row ${x.row_no} already exists in this organization; nothing was imported`, posted: 0 });
       }
-      if (job.import_type === "ITEMS") {
-        await c.query("INSERT INTO items (org_id,sku,name,brand,category,hsn,gst_rate,base_uom,batch_tracked,valuation) VALUES (?,?,?,?,?,?,?,?,?,?)", [ORG,p.sku,p.name,p.brand||null,p.category||null,p.hsn,Number(p.gst_rate),String(p.base_uom).toUpperCase(),asBool(p.batch_tracked),p.valuation ? p.valuation.toUpperCase() : "FIFO"]);
-      } else if (job.import_type === "WAREHOUSES") {
-        await c.query("INSERT INTO warehouses (org_id,name,notes,allow_negative,default_uom,default_reorder,max_stock) VALUES (?,?,?,?,?,?,?)", [ORG,p.name,p.notes||null,asBool(p.allow_negative),String(p.default_uom||"NOS").toUpperCase(),Number(p.default_reorder||0),p.max_stock ? Number(p.max_stock) : null]);
-      } else {
-        await c.query("INSERT INTO parties (org_id,name,gstin,mobile,credit_limit,terms,party_type,status,preferred) VALUES (?,?,?,?,?,?,?,?,?)", [ORG,p.name,p.gstin ? p.gstin.toUpperCase() : null,p.mobile||null,Number(p.credit_limit||0),p.terms||"Net 30",String(p.party_type||"CUSTOMER").toUpperCase(),String(p.status||"ACTIVE").toUpperCase(),asBool(p.preferred)]);
-      }
+      await insertMaster(c, job.import_type, p);
       posted++;
     }
     await c.query("UPDATE import_jobs SET status='COMMITTED',rows_valid=?,rows_error=? WHERE id=? AND org_id=?", [posted, rows.length === posted ? 0 : rows.length - posted, req.params.id, ORG]);
