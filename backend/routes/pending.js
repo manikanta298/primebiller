@@ -249,7 +249,7 @@ r.get("/transfers", async (req, res) => {
     `, [req.query.id, ORG]);
     if (head) {
       const lines = await q(`
-        SELECT tl.id,tl.qty,tl.rate,i.name item,i.sku,i.base_uom uom,b.batch_no
+        SELECT tl.id,tl.qty,tl.rate,tl.item_id,tl.batch_id,i.name item,i.sku,i.base_uom uom,b.batch_no
         FROM stock_transfer_lines tl
         JOIN items i ON i.id=tl.item_id
         LEFT JOIN batches b ON b.id=tl.batch_id
