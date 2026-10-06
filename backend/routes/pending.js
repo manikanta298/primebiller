@@ -444,7 +444,11 @@ r.get("/parties/list", async (req, res) => {
 });
 
 // ---------- Warehouses / godowns ----------
-r.get("/warehouses/list", async (_req, res) => {
+r.get("/warehouses/list", async (req, res) => {
+  const search = String(req.query.search || "").trim();
+  const where = ["w.org_id=?","w.active=1"];
+  const params = [ORG];
+  if (search.length >= 2) { where.push("w.name LIKE ?"); params.push(`%${search}%`); }
   const rows = await q(`
     SELECT w.id,w.name,w.notes,w.allow_negative,w.default_uom,w.default_reorder,w.max_stock,w.active_skus,
       COALESCE(SUM(b.qty_on_hand*b.unit_cost),0) stock_value,
@@ -452,10 +456,10 @@ r.get("/warehouses/list", async (_req, res) => {
       (SELECT COUNT(*) FROM stock_alerts a WHERE a.warehouse_id=w.id AND a.acknowledged_at IS NULL) alerts
     FROM warehouses w
     LEFT JOIN batches b ON b.warehouse_id=w.id
-    WHERE w.org_id=? AND w.active=1
+    WHERE ${where.join(" AND ")}
     GROUP BY w.id
     ORDER BY w.id
-  `, [ORG]);
+  `, params);
   res.json({ rows });
 });
 
