@@ -3,9 +3,9 @@ import { api, inr, lakh } from '../api';
 import { KpiStrip, FilterBar, Tag, Money } from './ScreenKit';
 
 export default function Parties(){
-  const [data,setData]=useState(null),[search,setSearch]=useState(''),[type,setType]=useState('');
-  const load=()=>api('/parties/list?search='+encodeURIComponent(search)+'&type='+type).then(setData).catch(()=>setData({rows:[],summary:{}}));
-  useEffect(()=>{const t=setTimeout(load,120);return()=>clearTimeout(t)},[search,type]);
+  const [data,setData]=useState(null),[search,setSearch]=useState(''),[type,setType]=useState(''),[status,setStatus]=useState('');
+  const load=()=>api('/parties/list?search='+encodeURIComponent(search)+'&type='+type+'&status='+status).then(setData).catch(()=>setData({rows:[],summary:{}}));
+  useEffect(()=>{const t=setTimeout(load,120);return()=>clearTimeout(t)},[search,type,status]);
   const s=data?.summary||{};
   return <>
     <div className="gd-h"><div><h1>Parties</h1><p>Customer and supplier master with GST, credit controls and outstanding balances</p></div><div className="gd-actions"><button className="gd-btn">Import CSV</button><button className="gd-btn pri">New party</button></div></div>
@@ -21,7 +21,7 @@ export default function Parties(){
         ['CUSTOMER','Customers',s.customers?.n||0],
         ['SUPPLIER','Suppliers',s.suppliers?.n||0],
         ['ON_HOLD','On hold',s.onHold?.n||0],
-      ].map(([k,l,n])=><button key={k} className={'gd-chip'+(type===k?' on':'')} onClick={()=>setType(k)}>{l} <em>{n}</em></button>)}</div>
+      ].map(([k,l,n])=><button key={k} className={'gd-chip'+((k==='ON_HOLD'?status:type)===k?' on':'')} onClick={()=>{if(k==='ON_HOLD'){setStatus('ON_HOLD')}else{setStatus('');setType(k)}}}>{l} <em>{n}</em></button>)}</div>
     </FilterBar>
     <div className="gd-card gd-table-card"><div className="gd-table-scroll"><table className="gd-t"><thead><tr><th>PARTY</th><th>TYPE</th><th>GSTIN</th><th>PHONE</th><th className="gd-r">CREDIT LIMIT</th><th className="gd-r">OUTSTANDING</th><th>STATUS</th></tr></thead>
       <tbody>{(data?.rows||[]).map(r=><tr key={r.id}><td><b>{r.name}</b><small>{r.id?('Party #'+r.id):''}</small></td><td>{r.party_type==='CUSTOMER'?'Customer':'Supplier'}</td><td className="gd-mono">{r.gstin||'Unregistered'}</td><td className="gd-mono">{r.mobile||'—'}</td><td className="gd-r"><Money value={r.credit_limit}/></td><td className="gd-r"><Money value={r.outstanding}/></td><td><Tag tone={r.status==='ON_HOLD'?'red':r.status==='CREDIT_WATCH'?'amb':'grn'}>{r.status==='CREDIT_WATCH'?'Credit watch':r.status==='ON_HOLD'?'On hold':'Active'}</Tag></td></tr>)}</tbody>
