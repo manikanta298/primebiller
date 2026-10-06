@@ -410,11 +410,13 @@ r.post("/adjustments", async (req, res) => {
 r.get("/parties/list", async (req, res) => {
   const search = String(req.query.search || "").trim();
   const type = String(req.query.type || "").toUpperCase();
+  const status = String(req.query.status || "").toUpperCase();
   const where = ["p.org_id=?"];
   const params = [ORG];
   if (search) { where.push("(p.name LIKE ? OR p.gstin LIKE ? OR p.mobile LIKE ?)"); params.push(`%${search}%`,`%${search}%`,`%${search}%`); }
   if (["CUSTOMER","SUPPLIER"].includes(type)) { where.push("p.party_type=?"); params.push(type); }
-  if (type === "ON_HOLD") { where.push("p.status='ON_HOLD'"); }
+  const requestedStatus = status || (type === "ON_HOLD" ? "ON_HOLD" : "");
+  if (["ACTIVE","ON_HOLD","CREDIT_WATCH"].includes(requestedStatus)) { where.push("p.status=?"); params.push(requestedStatus); }
   const rows = await q(`
     SELECT p.id,p.name,p.party_type,p.gstin,p.mobile,p.credit_limit,p.status,p.preferred,
       COALESCE(SUM(i.balance_due),0) outstanding
