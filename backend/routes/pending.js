@@ -415,6 +415,9 @@ r.post("/adjustments", async (req, res) => {
   res.status(201).json({ id:ins.insertId,docNo:no });
 });
 
+// Escape LIKE wildcards so a search for "50%" or "A_B" matches literally.
+const likeTerm = (t) => `%${t.replace(/[\\%_]/g, "\\$&")}%`;
+
 // ---------- Items master list ----------
 r.get("/items/list", async (req, res) => {
   const search = String(req.query.search || "").trim();
@@ -422,7 +425,7 @@ r.get("/items/list", async (req, res) => {
   const params = [ORG];
   if (search.length >= 2) {
     where.push("(i.name LIKE ? OR i.sku LIKE ? OR i.hsn LIKE ? OR i.brand LIKE ?)");
-    params.push(`%${search}%`,`%${search}%`,`%${search}%`,`%${search}%`);
+    params.push(likeTerm(search),likeTerm(search),likeTerm(search),likeTerm(search));
   }
   const rows = await q(`
     SELECT i.id,i.sku,i.name,i.brand,i.category,i.hsn,i.gst_rate,i.base_uom,i.valuation,
@@ -444,7 +447,7 @@ r.get("/parties/list", async (req, res) => {
   const status = String(req.query.status || "").toUpperCase();
   const where = ["p.org_id=?"];
   const params = [ORG];
-  if (search.length >= 2) { where.push("(p.name LIKE ? OR p.gstin LIKE ? OR p.mobile LIKE ?)"); params.push(`%${search}%`,`%${search}%`,`%${search}%`); }
+  if (search.length >= 2) { where.push("(p.name LIKE ? OR p.gstin LIKE ? OR p.mobile LIKE ?)"); params.push(likeTerm(search),likeTerm(search),likeTerm(search)); }
   if (["CUSTOMER","SUPPLIER"].includes(type)) { where.push("p.party_type=?"); params.push(type); }
   const requestedStatus = status || (type === "ON_HOLD" ? "ON_HOLD" : "");
   if (["ACTIVE","ON_HOLD","CREDIT_WATCH"].includes(requestedStatus)) { where.push("p.status=?"); params.push(requestedStatus); }
@@ -470,7 +473,7 @@ r.get("/warehouses/list", async (req, res) => {
   const search = String(req.query.search || "").trim();
   const where = ["w.org_id=?","w.active=1"];
   const params = [ORG];
-  if (search.length >= 2) { where.push("w.name LIKE ?"); params.push(`%${search}%`); }
+  if (search.length >= 2) { where.push("w.name LIKE ?"); params.push(likeTerm(search)); }
   const rows = await q(`
     SELECT w.id,w.name,w.notes,w.allow_negative,w.default_uom,w.default_reorder,w.max_stock,w.active_skus,
       COALESCE(SUM(b.qty_on_hand*b.unit_cost),0) stock_value,

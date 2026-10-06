@@ -11,15 +11,15 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@vitejs/plugin-react": "latest",
-    "vite": "latest",
-    "react": "latest",
-    "react-dom": "latest"
+    "@vitejs/plugin-react": "^6.1.1",
+    "vite": "^8.3.1",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
   },
   "devDependencies": {
-    "vitest": "latest",
-    "jsdom": "latest",
-    "@testing-library/react": "latest",
-    "@testing-library/jest-dom": "latest"
+    "vitest": "^5.0.3",
+    "jsdom": "^30.1.2",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/jest-dom": "^7.0.1"
   }
 }

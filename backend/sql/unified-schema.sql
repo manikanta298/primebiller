@@ -175,7 +175,7 @@ CREATE TABLE import_jobs (
 
 CREATE TABLE import_rows (
   id BIGINT AUTO_INCREMENT PRIMARY KEY, job_id INT NOT NULL, row_no INT NOT NULL,
-  payload JSON NOT NULL, error_kind VARCHAR(40), error_msg VARCHAR(200), fixed TINYINT(1) NOT NULL DEFAULT 0,
+  payload JSON NOT NULL, error_kind VARCHAR(40), error_msg VARCHAR(200), error_field VARCHAR(40), fixed TINYINT(1) NOT NULL DEFAULT 0,
   KEY ix_job_err (job_id, error_kind)
 );
 
