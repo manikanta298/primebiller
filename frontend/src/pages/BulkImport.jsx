@@ -1,45 +1,46 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { api, base } from '../api';
 
-const H = { 'Content-Type': 'application/json' };
-const FIXES = { UOM: 'Map BAGS → BAG', HSN: 'Pad HSN to 4 digits', DUP: 'Keep the first of each duplicate' };
-const FIELD_ERR = { UOM: 'uom', HSN: 'hsn', RATE: 'rate', NEG: 'qty', DUP: 'sku', GODOWN: 'godown' };
+const TYPES = {
+  ITEMS: { label:'Items', columns:['sku','name','hsn','gst_rate','base_uom','batch_tracked','valuation','brand','category'] },
+  WAREHOUSES: { label:'Warehouses', columns:['name','notes','allow_negative','default_uom','default_reorder','max_stock'] },
+  PARTIES: { label:'Parties', columns:['name','party_type','gstin','mobile','credit_limit','terms','status','preferred'] },
+};
+const H = {'Content-Type':'application/json'};
+const csvEscape=(v)=>`"${String(v).replace(/"/g,'""')}"`;
+const sample={
+  ITEMS:['SKU-001','Sample item','271019','18','NOS','true','FIFO','Brand','Category'],
+  WAREHOUSES:['Main Warehouse','Primary stock location','false','NOS','10','1000'],
+  PARTIES:['Sample Customer','CUSTOMER','36ABCDE1234F1Z5','9876543210','50000','Net 30','ACTIVE','false'],
+};
 
-export default function BulkImport() {
-  const [s, setS] = useState(null), [rows, setRows] = useState([]), [only, setOnly] = useState(true), [msg, setMsg] = useState('');
-  const load = async (id) => { const sum = await api(id ? `/imports/${id}` : '/imports/current'); setS(sum); if (sum) setRows(await api(`/imports/${sum.job.id}/rows?errorsOnly=${only ? 1 : 0}`)); };
-  useEffect(() => { load(s?.job.id); }, [only]);
-  if (!s) return <div className="gd-soon"><h1>Bulk import</h1><label className="gd-btn" style={{ display: 'inline-block' }}>Upload CSV<input type="file" accept=".csv" hidden onChange={async (e) => {
-    const f = e.target.files[0]; e.target.value = ''; if (!f) return;
-    try {
-      setMsg(`Uploading ${f.name}…`);
-      const r = await fetch(`${base}/api/imports?filename=${encodeURIComponent(f.name)}`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'text/csv' }, body: await f.text() });
-      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `Upload failed (${r.status})`);
-      const sum = await r.json(); setS(sum); setMsg('');
-      setRows(await api(`/imports/${sum.job.id}/rows?errorsOnly=1`));
-    } catch (err) { setMsg(err.message || 'Upload failed'); }
-  }} /></label><p>Columns: sku, name, uom, hsn, qty, rate, godown</p><div role="status" aria-live="polite">{msg && <p>{msg}</p>}</div></div>;
-  const { job, counts: c, kinds } = s, n = (x) => Number(x || 0).toLocaleString('en-IN');
-  const editCell = async (row, field, value) => { try { setS(await api(`/imports/${job.id}/rows/${row}`, { method: 'PATCH', headers: H, body: JSON.stringify({ field, value }) })); setRows(await api(`/imports/${job.id}/rows?errorsOnly=${only ? 1 : 0}`)); setMsg(''); } catch (e) { setMsg(e.message); } };
-  const bulk = async (kind) => { setS(await api(`/imports/${job.id}/bulk-fix`, { method: 'POST', headers: H, body: JSON.stringify({ kind }) })); setRows(await api(`/imports/${job.id}/rows?errorsOnly=${only ? 1 : 0}`)); };
-  const commit = async () => { try { const r = await api(`/imports/${job.id}/commit`, { method: 'POST' }); setMsg(`Committed ${n(r.posted)} rows`); load(job.id); } catch (e) { setMsg(e.message); } };
-  const kpi = (t, v, col) => <div className="gd-card gd-kpi"><small>{t}</small><b style={{ color: col }}>{n(v)}</b></div>;
-  const done = job.status === 'COMMITTED';
-  return (<>
-    <div className="gd-h"><div><h1>Bulk import — opening stock</h1><p><span className="gd-mono">{job.filename}</span> · {n(job.rows_total)} rows · {msg || `status ${job.status}`}</p></div>
-      <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}><button className="gd-btn">Download error rows</button><button className="gd-btn" style={{ border: 0, background: 'none' }} onClick={async () => { await api(`/imports/${job.id}/cancel`, { method: 'POST' }); load(job.id); }}>Cancel import</button>
-        <button className="gd-btn pri" onClick={commit} disabled={job.status !== 'VALIDATED'}>Commit {n(Number(c.valid) + 0)} valid rows</button></div></div>
-    <div className="gd-card gd-steps">{['Upload', 'Map columns', 'Validate', 'Fix errors', 'Commit'].map((x, i) => <span key={x} className={i < 3 || done ? 'done' : i === 3 ? 'cur' : ''}><i>{i < 3 || done ? '✓' : i + 1}</i>{x}</span>)}<em>Status <b style={{ color: 'var(--ink)' }}>{job.status}</b> — commit is allowed from this state only</em></div>
-    <div className="gd-kpis" style={{ gridTemplateColumns: 'repeat(4,1fr)', margin: '16px 0' }}>{kpi('ROWS PARSED', c.total)}{kpi('VALID', c.valid, '#1d6b43')}{kpi('WITH ERRORS', c.errors, 'var(--red)')}{kpi('FIXED SO FAR', c.fixed, 'var(--teal)')}</div>
-    <div className="gd-two" style={{ gridTemplateColumns: '275px 1fr', alignItems: 'start' }}>
-      <div className="gd-card"><div className="gd-ch"><h3>Errors by kind</h3></div>
-        <table className="gd-t"><thead><tr><th>PROBLEM</th><th className="gd-r">ROWS</th></tr></thead><tbody>{kinds.map((k, i) => <tr key={k.kind}><td style={{ color: i === 0 ? 'var(--red)' : 'inherit', fontWeight: i === 0 ? 600 : 400 }}>{k.label}</td><td className="gd-r gd-mono">{n(k.rows)}</td></tr>)}</tbody></table>
-        <div style={{ padding: 16 }}><small className="gd-cap">BULK FIXES</small>{Object.entries(FIXES).map(([k, l]) => { const cnt = kinds.find((x) => x.kind === k)?.rows || 0; return <button key={k} className="gd-btn" style={{ display: 'block', width: '100%', textAlign: 'left', margin: '8px 0' }} onClick={() => bulk(k)}>{l} ({n(cnt)}{k === 'UOM' ? ' rows' : ''})</button>; })}</div></div>
-      <div className="gd-card"><div className="gd-ch"><h3>Rows with errors — edit in place</h3><div className="gd-chips"><button className={`gd-chip${only ? ' on' : ''}`} onClick={() => setOnly(true)}>Errors only<em>{n(c.remaining)}</em></button><button className={`gd-chip${!only ? ' on' : ''}`} onClick={() => setOnly(false)}>All rows<em>{n(c.total)}</em></button></div></div>
-        <table className="gd-t"><thead><tr><th>ROW</th><th>SKU</th><th>ITEM NAME</th><th>UOM</th><th>HSN</th><th>OPENING QTY</th><th>RATE</th></tr></thead>
-          <tbody>{rows.slice(0, 8).map((r) => { const p = r.payload; const bad = r.error_kind && !r.fixed ? FIELD_ERR[r.error_kind] : null;
-            const cell = (f) => bad === f ? <div><input className="gd-err" defaultValue={p[f]} onBlur={(e) => e.target.value !== String(p[f]) && editCell(r.row_no, f, e.target.value)} /><small style={{ color: 'var(--red)', display: 'block', fontSize: 11 }}>{r.error_msg}</small></div> : <span className="gd-mono">{p[f]}</span>;
-            return <tr key={r.row_no}><td className="gd-mono" style={{ color: 'var(--mut)' }}>{r.row_no}</td><td>{cell('sku')}</td><td>{p.name}</td><td>{cell('uom')}</td><td>{cell('hsn')}</td><td>{cell('qty')}</td><td>{cell('rate')}</td></tr>; })}</tbody></table>
-        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 16px', background: '#f4f1e8', fontSize: 13, borderRadius: '0 0 12px 12px' }}><span style={{ color: 'var(--mut)' }}>{Math.min(6, rows.length)} of {n(c.remaining)} remaining error rows · virtualised grid, {n(c.total)} rows without paging</span><b>Commit posts 500 rows per transaction, through the same primitive the UI uses.</b></div></div>
-    </div></>);
+export default function BulkImport({ route }) {
+  const query=new URLSearchParams(String(route||'').split('?')[1]||'');
+  const initial=TYPES[query.get('type')?.toUpperCase()] ? query.get('type').toUpperCase() : 'ITEMS';
+  const [type,setType]=useState(initial),[job,setJob]=useState(null),[rows,setRows]=useState([]),[msg,setMsg]=useState('');
+  const meta=TYPES[type];
+  const refresh=async(id)=>{const s=await api(`/imports/${id}`);setJob(s);setRows(await api(`/imports/${id}/rows?errorsOnly=1`));};
+  const upload=async(file)=>{
+    try{
+      setMsg(`Uploading ${file.name}…`);
+      const r=await fetch(`${base}/api/imports?type=${type}&filename=${encodeURIComponent(file.name)}`,{method:'POST',credentials:'include',headers:{'Content-Type':'text/csv'},body:await file.text()});
+      const body=await r.json();if(!r.ok)throw new Error(body.error||`Upload failed (${r.status})`);
+      setJob(body);setRows(await api(`/imports/${body.job.id}/rows?errorsOnly=1`));setMsg('');
+    }catch(e){setMsg(e.message||'Upload failed');}
+  };
+  const edit=async(row,field,value)=>{try{const s=await api(`/imports/${job.job.id}/rows/${row}`,{method:'PATCH',headers:H,body:JSON.stringify({field,value})});setJob(s);setRows(await api(`/imports/${job.job.id}/rows?errorsOnly=1`));}catch(e){setMsg(e.message);}};
+  const commit=async()=>{try{const r=await api(`/imports/${job.job.id}/commit`,{method:'POST'});setMsg(`Committed ${r.posted} ${meta.label.toLowerCase()}`);await refresh(job.job.id);}catch(e){setMsg(e.message);}};
+  const templateUrl=`${base}/api/imports/templates/${type.toLowerCase()}.csv`;
+  const downloadSample=()=>{const blob=new Blob([meta.columns.join(',')+'\n'+sample[type].map(csvEscape).join(',')+'\n'],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`${type.toLowerCase()}-sample.csv`;a.click();URL.revokeObjectURL(a.href);};
+  return <>
+    <div className="gd-h"><div><h1>Bulk import</h1><p>Import one master type at a time with validation before commit.</p></div><div className="gd-actions"><a className="gd-btn" href={templateUrl}>Download CSV template</a><label className="gd-btn pri">Upload {meta.label}<input type="file" accept=".csv,text/csv" hidden onChange={e=>{const f=e.target.files[0];e.target.value='';if(f)upload(f)}} /></label></div></div>
+    <div className="gd-card gd-filterbar"><div className="gd-filter-row"><label className="gd-grow"><span>Import type</span><select value={type} onChange={e=>{setType(e.target.value);setJob(null);setRows([]);setMsg('')}}><option value="ITEMS">Items</option><option value="WAREHOUSES">Warehouses</option><option value="PARTIES">Parties</option></select></label><button className="gd-btn" onClick={downloadSample}>Download sample CSV</button><span className="gd-footnote">Required columns: {meta.columns.join(', ')}</span></div></div>
+    {msg&&<div className="gd-note" role="status">{msg}</div>}
+    {job&&<div className="gd-card gd-table-card"><div className="gd-table-title"><b>{meta.label} import</b><span>{job.job.rows_total} rows · {job.counts.errors} errors · {job.job.status}</span></div>
+      <div className="gd-table-scroll"><table className="gd-t"><thead><tr><th>ROW</th>{meta.columns.map(c=><th key={c}>{c.toUpperCase()}</th>)}<th>VALIDATION</th></tr></thead>
+      <tbody>{rows.map(r=>{const p=typeof r.payload==='string'?JSON.parse(r.payload):r.payload;return <tr key={r.row_no}><td className="gd-mono">{r.row_no}</td>{meta.columns.map(c=><td key={c}>{r.error_kind&&r.error_kind!==c?p[c]||'—':<input className={r.error_kind?'gd-err':'gd-cell'} defaultValue={p[c]||''} onBlur={e=>{if(e.target.value!==String(p[c]??''))edit(r.row_no,c,e.target.value)}} />}</td>)}<td>{r.error_msg||'—'}</td></tr>})}</tbody></table></div>
+      <div className="gd-pager"><span>{rows.length} error rows shown</span><button className="gd-btn pri" disabled={job.counts.errors>0} onClick={commit}>Commit {job.counts.valid} valid rows</button></div>
+    </div>}
+    {!job&&<div className="gd-card gd-empty">Choose an import type, download its template, fill the CSV, and upload it. Invalid rows are kept out of the commit until corrected.</div>}
+  </>;
 }
