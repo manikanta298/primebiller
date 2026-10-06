@@ -49,14 +49,46 @@ test('pending screen API integration suite', { skip: !process.env.DATABASE_URL }
     assert.ok(adjustments.body.rows.length>=5);
   });
 
+  await t.test('adjustment creation rejects a batch from another godown', async()=>{
+    const [[batch]]=await pool.query(
+      "SELECT b.id,b.item_id,b.warehouse_id FROM batches b JOIN warehouses w ON w.id=b.warehouse_id WHERE w.org_id=? LIMIT 1",
+      [1],
+    );
+    const [[otherWarehouse]]=await pool.query(
+      "SELECT id FROM warehouses WHERE org_id=? AND id<>? LIMIT 1",
+      [1,batch.warehouse_id],
+    );
+    assert.ok(batch && otherWarehouse);
+    const res=await request(app).post('/adjustments').send({
+      warehouseId:otherWarehouse.id,
+      itemId:batch.item_id,
+      batchId:batch.id,
+      qty:1,
+      reason:'Integrity test',
+      value:1,
+    });
+    assert.equal(res.status,422);
+  });
+
   await t.test('in-transit transfer receipt posts destination stock transactionally', async()=>{
     const first=await request(app).get('/transfers');
     const row=first.body.rows.find(x=>x.status==='IN_TRANSIT');
     assert.ok(row,'seeded in-transit transfer not found');
     const before=await request(app).get('/transfers?id='+row.id);
     assert.equal(before.body.selected.status,'IN_TRANSIT');
+    const sourceLine=before.body.selected.lines[0];
+    const [[sourceBatch]]=await pool.query(
+      "SELECT expiry_date FROM batches WHERE id=? AND item_id=? AND warehouse_id=?",
+      [sourceLine.batch_id,sourceLine.item_id,before.body.selected.from_warehouse_id],
+    );
+    assert.ok(sourceBatch,'seeded source batch must belong to the transfer origin');
     const res=await request(app).post('/transfers/'+row.id+'/receive').send({});
     assert.equal(res.status,200);
+    const [[destinationBatch]]=await pool.query(
+      "SELECT expiry_date FROM batches WHERE item_id=? AND warehouse_id=? AND batch_no=?",
+      [sourceLine.item_id,before.body.selected.to_warehouse_id,sourceLine.batch_no],
+    );
+    assert.equal(destinationBatch.expiry_date?.toISOString?.() || destinationBatch.expiry_date, sourceBatch.expiry_date?.toISOString?.() || sourceBatch.expiry_date);
     const after=await request(app).get('/transfers?id='+row.id);
     assert.equal(after.body.selected.status,'COMPLETED');
   });
