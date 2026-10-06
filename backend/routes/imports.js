@@ -159,18 +159,36 @@ r.post("/imports/:id/cancel", async (req, res, next) => {
   res.json(await summary(req.params.id));
 });
 
+const existsSql = {
+  ITEMS: ["SELECT 1 FROM items WHERE org_id=? AND sku=? LIMIT 1", (p) => p.sku],
+  WAREHOUSES: ["SELECT 1 FROM warehouses WHERE org_id=? AND LOWER(TRIM(name))=? LIMIT 1", (p) => p.name.trim().toLowerCase()],
+  PARTIES: ["SELECT 1 FROM parties WHERE org_id=? AND LOWER(TRIM(name))=? LIMIT 1", (p) => p.name.trim().toLowerCase()],
+};
+
 r.post("/imports/:id/commit", async (req, res, next) => {
   const job = await loadTypedJob(req.params.id);
   if (!job) return next();
-  const [j] = await q("SELECT status FROM import_jobs WHERE id=? AND org_id=?", [req.params.id, ORG]);
-  if (j?.status !== "VALIDATED") return res.status(409).json({ error: "Commit is only allowed from the VALIDATED state" });
-  const rows = await q("SELECT row_no,payload FROM import_rows WHERE job_id=? AND (error_kind IS NULL OR fixed=1) ORDER BY row_no", [req.params.id]);
   const c = await pool.getConnection();
   let posted = 0;
   try {
     await c.beginTransaction();
+    // Lock the job row so two concurrent commits cannot both pass the status check:
+    // the second one waits here, then sees COMMITTED and is rejected.
+    const [[j]] = await c.query("SELECT status FROM import_jobs WHERE id=? AND org_id=? FOR UPDATE", [req.params.id, ORG]);
+    if (j?.status !== "VALIDATED") {
+      await c.rollback();
+      return res.status(409).json({ error: "Commit is only allowed from the VALIDATED state" });
+    }
+    const [rows] = await c.query("SELECT row_no,payload FROM import_rows WHERE job_id=? AND (error_kind IS NULL OR fixed=1) ORDER BY row_no", [req.params.id]);
+    const [checkSql, checkKey] = existsSql[job.import_type];
     for (const x of rows) {
       const p = typeof x.payload === "string" ? JSON.parse(x.payload) : x.payload;
+      // Parties and warehouses have no unique key, so re-check against the live table inside the transaction.
+      const [dupe] = await c.query(checkSql, [ORG, checkKey(p)]);
+      if (dupe.length) {
+        await c.rollback();
+        return res.status(409).json({ error: `Row ${x.row_no} already exists in this organization; nothing was imported`, posted: 0 });
+      }
       if (job.import_type === "ITEMS") {
         await c.query("INSERT INTO items (org_id,sku,name,brand,category,hsn,gst_rate,base_uom,batch_tracked,valuation) VALUES (?,?,?,?,?,?,?,?,?,?)", [ORG,p.sku,p.name,p.brand||null,p.category||null,p.hsn,Number(p.gst_rate),String(p.base_uom).toUpperCase(),asBool(p.batch_tracked),p.valuation ? p.valuation.toUpperCase() : "FIFO"]);
       } else if (job.import_type === "WAREHOUSES") {
@@ -184,7 +202,7 @@ r.post("/imports/:id/commit", async (req, res, next) => {
     await c.commit();
     res.json({ ok:true, posted, type:job.import_type });
   } catch (e) {
-    await c.rollback();
+    await c.rollback().catch(() => {});
     res.status(e.code === "ER_DUP_ENTRY" ? 409 : 500).json({ error: e.code === "ER_DUP_ENTRY" ? "A row conflicts with an existing master record" : e.message, posted:0 });
   } finally { c.release(); }
 });
