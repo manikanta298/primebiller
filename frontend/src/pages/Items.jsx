@@ -7,7 +7,7 @@ export default function Items() {
   const [data,setData]=useState({rows:[]}), [search,setSearch]=useState('');
   // Below 2 characters the list is unfiltered (matches the API), so 1 character never leaves stale results.
   const term=search.trim().length>=2?search.trim():'';
-  const [showNew,setShowNew]=useState(false),[reload,setReload]=useState(0);
+  const [showNew,setShowNew]=useState(false),[editRow,setEditRow]=useState(null),[reload,setReload]=useState(0);
   useEffect(()=>{
     let stale=false;
     const t=setTimeout(async()=>{ try { const d=await api('/items/list?search='+encodeURIComponent(term)); if(!stale) setData(d); } catch { if(!stale) setData({rows:[]}); } },120);
@@ -20,9 +20,10 @@ export default function Items() {
     <DeleteBar del={del} label="Item"/>
     <div className="gd-card gd-table-card"><div className="gd-table-title"><b>{data.rows.length} items</b><span>{term ? `Filtered by “${term}”` : 'Showing all items'}</span></div>
       <div className="gd-table-scroll"><table className="gd-t"><thead><tr><SelectAllTh del={del} label="Item"/><th>ITEM</th><th>SKU</th><th>HSN</th><th>GST</th><th>UOM</th><th>VALUATION</th><th className="gd-r">ON HAND</th><th></th></tr></thead>
-      <tbody>{data.rows.map(r=><tr key={r.id}><SelectTd del={del} id={r.id} name={r.name}/><td><b>{r.name}</b><small>{r.brand||r.category||'—'}</small></td><td className="gd-mono">{r.sku}</td><td className="gd-mono">{r.hsn}</td><td>{r.gst_rate}%</td><td>{r.base_uom}</td><td>{r.valuation}</td><td className="gd-r gd-mono">{inr(r.on_hand,3)}</td><td><DeleteBtn del={del} row={r}/></td></tr>)}</tbody></table></div>
+      <tbody>{data.rows.map(r=><tr key={r.id}><SelectTd del={del} id={r.id} name={r.name}/><td><b>{r.name}</b><small>{r.brand||r.category||'—'}</small></td><td className="gd-mono">{r.sku}</td><td className="gd-mono">{r.hsn}</td><td>{r.gst_rate}%</td><td>{r.base_uom}</td><td>{r.valuation}</td><td className="gd-r gd-mono">{inr(r.on_hand,3)}</td><td className="gd-rowactions"><button className="gd-btn" onClick={()=>setEditRow(r)} aria-label={`Edit ${r.name}`}>Edit</button> <DeleteBtn del={del} row={r}/></td></tr>)}</tbody></table></div>
       {!data.rows.length && <div className="gd-empty">No matching items found.</div>}
     </div>
+  {editRow&&<MasterFormModal type="ITEMS" record={editRow} onClose={()=>setEditRow(null)} onSaved={()=>{setEditRow(null);setReload(n=>n+1)}}/>}
   {showNew&&<MasterFormModal type="ITEMS" onClose={()=>setShowNew(false)} onSaved={()=>{setShowNew(false);setReload(n=>n+1)}}/>}
   </>;
 }

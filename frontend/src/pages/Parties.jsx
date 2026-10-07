@@ -7,7 +7,7 @@ import { KpiStrip, FilterBar, Tag, Money } from './ScreenKit';
 export default function Parties(){
   const [data,setData]=useState(null),[search,setSearch]=useState(''),[type,setType]=useState(''),[status,setStatus]=useState('');
   const term=search.trim().length>=2?search.trim():'';
-  const [showNew,setShowNew]=useState(false),[reload,setReload]=useState(0);
+  const [showNew,setShowNew]=useState(false),[editRow,setEditRow]=useState(null),[reload,setReload]=useState(0);
   useEffect(()=>{
     let stale=false;
     const t=setTimeout(()=>{api('/parties/list?search='+encodeURIComponent(term)+'&type='+type+'&status='+status).then(d=>{if(!stale)setData(d)}).catch(()=>{if(!stale)setData({rows:[],summary:{}})})},120);
@@ -33,8 +33,9 @@ export default function Parties(){
     </FilterBar>
     <DeleteBar del={del} label="Party"/>
     <div className="gd-card gd-table-card"><div className="gd-table-scroll"><table className="gd-t"><thead><tr><SelectAllTh del={del} label="Party"/><th>PARTY</th><th>TYPE</th><th>GSTIN</th><th>PHONE</th><th className="gd-r">CREDIT LIMIT</th><th className="gd-r">OUTSTANDING</th><th>STATUS</th><th></th></tr></thead>
-      <tbody>{(data?.rows||[]).map(r=><tr key={r.id}><SelectTd del={del} id={r.id} name={r.name}/><td><b>{r.name}</b><small>{r.id?('Party #'+r.id):''}</small></td><td>{r.party_type==='CUSTOMER'?'Customer':'Supplier'}</td><td className="gd-mono">{r.gstin||'Unregistered'}</td><td className="gd-mono">{r.mobile||'—'}</td><td className="gd-r"><Money value={r.credit_limit}/></td><td className="gd-r"><Money value={r.outstanding}/></td><td><Tag tone={r.status==='ON_HOLD'?'red':r.status==='CREDIT_WATCH'?'amb':'grn'}>{r.status==='CREDIT_WATCH'?'Credit watch':r.status==='ON_HOLD'?'On hold':'Active'}</Tag></td><td><DeleteBtn del={del} row={r}/></td></tr>)}</tbody>
+      <tbody>{(data?.rows||[]).map(r=><tr key={r.id}><SelectTd del={del} id={r.id} name={r.name}/><td><b>{r.name}</b><small>{r.id?('Party #'+r.id):''}</small></td><td>{r.party_type==='CUSTOMER'?'Customer':'Supplier'}</td><td className="gd-mono">{r.gstin||'Unregistered'}</td><td className="gd-mono">{r.mobile||'—'}</td><td className="gd-r"><Money value={r.credit_limit}/></td><td className="gd-r"><Money value={r.outstanding}/></td><td><Tag tone={r.status==='ON_HOLD'?'red':r.status==='CREDIT_WATCH'?'amb':'grn'}>{r.status==='CREDIT_WATCH'?'Credit watch':r.status==='ON_HOLD'?'On hold':'Active'}</Tag></td><td className="gd-rowactions"><button className="gd-btn" onClick={()=>setEditRow(r)} aria-label={`Edit ${r.name}`}>Edit</button> <DeleteBtn del={del} row={r}/></td></tr>)}</tbody>
     </table></div></div>
+  {editRow&&<MasterFormModal type="PARTIES" record={editRow} onClose={()=>setEditRow(null)} onSaved={()=>{setEditRow(null);setReload(n=>n+1)}}/>}
   {showNew&&<MasterFormModal type="PARTIES" onClose={()=>setShowNew(false)} onSaved={()=>{setShowNew(false);setReload(n=>n+1)}}/>}
   </>;
 }

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { pool, q } from "../db.js";
 import { ORG } from "../org.js";
-import { TYPES, cleanRow, validate, insertMaster, masterExists } from "./imports.js";
+import { TYPES, cleanRow, validate, insertMaster, updateMaster, masterExists } from "./imports.js";
 
 const r = Router();
 const PATHS = { items: "ITEMS", warehouses: "WAREHOUSES", parties: "PARTIES" };
@@ -91,6 +91,51 @@ for (const [path, type] of Object.entries(PATHS)) {
     const out = await deleteMaster(type, id);
     if (out.ok) return res.json({ ok: true, deleted: 1 });
     res.status(out.reason.endsWith("not found") ? 404 : 409).json({ error: out.reason });
+  });
+}
+
+// ---------- Read one / edit (Items and Parties; godowns are edited through PATCH /warehouses/:id) ----------
+const EDITABLE = { items: "ITEMS", parties: "PARTIES" };
+const LOCKED_ONCE_USED = ["base_uom", "batch_tracked", "valuation"]; // changing these under existing stock would corrupt it
+const asForm = (type, row) => Object.fromEntries(TYPES[type].columns.map((c) => {
+  const v = row[c];
+  return [c, v == null ? "" : typeof v === "number" && ["batch_tracked", "preferred"].includes(c) ? String(Boolean(v)) : String(v)];
+}));
+
+for (const [path, type] of Object.entries(EDITABLE)) {
+  r.get(`/${path}/:id`, async (req, res, next) => {
+    if (!/^\d+$/.test(req.params.id)) return next(); // leave /items/list, /items/search etc. to their own routes
+    const [row] = await q(`SELECT * FROM ${TABLE[type]} WHERE id=? AND org_id=?`, [req.params.id, ORG]);
+    if (!row) return res.status(404).json({ error: `${LABEL[type]} not found` });
+    res.json(asForm(type, row));
+  });
+
+  r.patch(`/${path}/:id`, async (req, res, next) => {
+    if (!/^\d+$/.test(req.params.id)) return next();
+    const id = Number(req.params.id);
+    const [cur] = await q(`SELECT * FROM ${TABLE[type]} WHERE id=? AND org_id=?`, [id, ORG]);
+    if (!cur) return res.status(404).json({ error: `${LABEL[type]} not found` });
+    const before = asForm(type, cur);
+    const body = cleanRow(req.body || {}, type);
+    const merged = { ...before, ...Object.fromEntries(TYPES[type].columns.filter((c) => c in body).map((c) => [c, body[c]])) };
+    const [checked] = await validate(type, [merged], new Set(), id);
+    if (checked[2]) return res.status(422).json({ error: checked[3], kind: checked[2], field: checked[4] });
+
+    if (type === "ITEMS") {
+      const changed = LOCKED_ONCE_USED.find((c) => String(merged[c]).toLowerCase() !== String(before[c]).toLowerCase());
+      if (changed) {
+        const [used] = await q("SELECT 1 FROM batches WHERE item_id=? UNION SELECT 1 FROM stock_ledger WHERE item_id=? LIMIT 1", [id, id]);
+        if (used) return res.status(409).json({ error: `${changed} cannot be changed once the item has stock or movements`, kind: "LOCKED", field: changed });
+      }
+    }
+    const c = await pool.getConnection();
+    try {
+      await updateMaster(c, type, id, merged);
+      res.json({ ok: true });
+    } catch (e) {
+      if (e.code === "ER_DUP_ENTRY") return res.status(409).json({ error: "A record with this key already exists", kind: "EXISTS" });
+      throw e;
+    } finally { c.release(); }
   });
 }
 

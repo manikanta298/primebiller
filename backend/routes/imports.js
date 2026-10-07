@@ -41,10 +41,13 @@ const validateHeaders = (type, data) => {
   return `Missing required column${missing.length > 1 ? "s" : ""}: ${missing.join(", ")}. Columns found: ${seen}. Download the template to see the expected headers.`;
 };
 
-const existingSets = async (type) => {
-  if (type === "ITEMS") return new Set((await q("SELECT sku FROM items WHERE org_id=?", [ORG])).map((x) => String(x.sku).toLowerCase()));
-  if (type === "WAREHOUSES") return new Set((await q("SELECT name FROM warehouses WHERE org_id=?", [ORG])).map((x) => String(x.name).trim().toLowerCase()));
-  return new Set((await q("SELECT name FROM parties WHERE org_id=?", [ORG])).map((x) => String(x.name).trim().toLowerCase()));
+// `excludeId` lets an edit be validated without the record colliding with itself.
+const existingSets = async (type, excludeId = null) => {
+  const skip = excludeId == null ? "" : " AND id<>?";
+  const args = excludeId == null ? [ORG] : [ORG, excludeId];
+  if (type === "ITEMS") return new Set((await q("SELECT sku FROM items WHERE org_id=?" + skip, args)).map((x) => String(x.sku).toLowerCase()));
+  if (type === "WAREHOUSES") return new Set((await q("SELECT name FROM warehouses WHERE org_id=?" + skip, args)).map((x) => String(x.name).trim().toLowerCase()));
+  return new Set((await q("SELECT name FROM parties WHERE org_id=?" + skip, args)).map((x) => String(x.name).trim().toLowerCase()));
 };
 const uomSet = async () => new Set((await q("SELECT code FROM uoms")).map((x) => String(x.code).toUpperCase()));
 
@@ -101,8 +104,8 @@ const keyOf = (type, p) => String(type === "ITEMS" ? p.sku : p.name).trim().toLo
 
 // `seen` can be pre-seeded (see the PATCH route) so a single edited row is still
 // checked against the other rows in the same file.
-export const validate = async (type, rows, seen = new Set()) => {
-  const existing = await existingSets(type);
+export const validate = async (type, rows, seen = new Set(), excludeId = null) => {
+  const existing = await existingSets(type, excludeId);
   const uoms = await uomSet();
   return rows.map((p, i) => {
     const bad = type === "ITEMS" ? validateItem(p, seen, existing, uoms) : type === "WAREHOUSES" ? validateWarehouse(p, seen, existing, uoms) : validateParty(p, seen, existing);
@@ -266,6 +269,12 @@ export const insertMaster = async (c, type, p) => {
     [res] = await c.query("INSERT INTO parties (org_id,name,gstin,mobile,credit_limit,terms,party_type,status,preferred) VALUES (?,?,?,?,?,?,?,?,?)", [ORG,p.name,p.gstin ? p.gstin.toUpperCase() : null,p.mobile||null,Number(p.credit_limit||0),p.terms||"Net 30",String(p.party_type||"CUSTOMER").toUpperCase(),String(p.status||"ACTIVE").toUpperCase(),asBool(p.preferred)]);
   }
   return res.insertId;
+};
+
+// Updates one already-validated master record (same value conversions as insertMaster).
+export const updateMaster = async (c, type, id, p) => {
+  if (type === "ITEMS") await c.query("UPDATE items SET sku=?,name=?,brand=?,category=?,hsn=?,gst_rate=?,base_uom=?,batch_tracked=?,valuation=? WHERE id=? AND org_id=?", [p.sku,p.name,p.brand||null,p.category||null,p.hsn,Number(p.gst_rate),String(p.base_uom).toUpperCase(),asBool(p.batch_tracked),p.valuation ? p.valuation.toUpperCase() : "FIFO",id,ORG]);
+  else await c.query("UPDATE parties SET name=?,gstin=?,mobile=?,credit_limit=?,terms=?,party_type=?,status=?,preferred=? WHERE id=? AND org_id=?", [p.name,p.gstin ? p.gstin.toUpperCase() : null,p.mobile||null,Number(p.credit_limit||0),p.terms||"Net 30",String(p.party_type||"CUSTOMER").toUpperCase(),String(p.status||"ACTIVE").toUpperCase(),asBool(p.preferred),id,ORG]);
 };
 
 r.post("/imports/:id/commit", async (req, res, next) => {

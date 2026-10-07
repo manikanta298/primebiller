@@ -37,12 +37,15 @@ export const FORMS = {
   },
 };
 
-export default function MasterFormModal({ type, onClose, onSaved }) {
+// With `record` the modal edits that record (loaded from GET <path>/<id>, saved with PATCH); without it, it creates one.
+export default function MasterFormModal({ type, record, onClose, onSaved }) {
   const cfg = FORMS[type];
+  const editing = !!record;
   const [vals, setVals] = useState(() => Object.fromEntries(cfg.fields.map((f) => [f.k, f.def ?? ''])));
   const [uoms, setUoms] = useState([]);
   const [err, setErr] = useState(null); // { message, field }
   const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(editing);
   const needsUom = cfg.fields.some((f) => f.type === 'uom');
 
   useEffect(() => {
@@ -50,13 +53,21 @@ export default function MasterFormModal({ type, onClose, onSaved }) {
     api('/uoms').then((d) => setUoms((d.rows || []).map((u) => u.code))).catch(() => setErr({ message: 'Units of measure could not be loaded' }));
   }, [needsUom]);
 
+  useEffect(() => {
+    if (!editing) return;
+    api(`${cfg.path}/${record.id}`)
+      .then((d) => setVals(Object.fromEntries(cfg.fields.map((f) => [f.k, f.type === 'bool' ? d[f.k] === true || d[f.k] === 'true' : (d[f.k] ?? '')]))))
+      .catch((e) => setErr({ message: e.message || 'Could not load the record' }))
+      .finally(() => setLoading(false));
+  }, [editing, record?.id, cfg.path]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const set = (k, v) => setVals((x) => ({ ...x, [k]: v }));
   const submit = async () => {
     const missing = cfg.fields.find((f) => f.req && !String(vals[f.k] ?? '').trim());
     if (missing) return setErr({ message: `${missing.l} is required`, field: missing.k });
     setBusy(true); setErr(null);
     try {
-      await api(cfg.path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(vals) });
+      await api(editing ? `${cfg.path}/${record.id}` : cfg.path, { method: editing ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(vals) });
       onSaved?.();
     } catch (e) {
       setErr({ message: e.message, field: e.field });
@@ -74,10 +85,12 @@ export default function MasterFormModal({ type, onClose, onSaved }) {
     </label>;
   };
 
-  return <div className="gd-modal-wrap"><div className="gd-modal" role="dialog" aria-label={cfg.title}>
-    <div className="gd-ch"><h3>{cfg.title}</h3><button className="gd-icon" aria-label="Close" onClick={onClose}>×</button></div>
+  const title = editing ? cfg.title.replace(/^New/, 'Edit') : cfg.title;
+
+  return <div className="gd-modal-wrap"><div className="gd-modal" role="dialog" aria-label={title}>
+    <div className="gd-ch"><h3>{title}</h3><button className="gd-icon" aria-label="Close" onClick={onClose}>×</button></div>
     <div className="gd-modal-form">{cfg.fields.map((f) => <React.Fragment key={f.k}>{input(f)}</React.Fragment>)}</div>
     {err && <p className="gd-form-err" role="alert">{err.message}</p>}
-    <div className="gd-modal-actions"><button className="gd-btn" onClick={onClose}>Cancel</button><button className="gd-btn pri" disabled={busy} onClick={submit}>{busy ? 'Saving…' : 'Save'}</button></div>
+    <div className="gd-modal-actions"><button className="gd-btn" onClick={onClose}>Cancel</button><button className="gd-btn pri" disabled={busy || loading} onClick={submit}>{busy ? 'Saving…' : 'Save'}</button></div>
   </div></div>;
 }
