@@ -50,4 +50,33 @@ test('single-entry master forms', { skip: !process.env.DATABASE_URL }, async (t)
     assert.equal(dup.status, 422); // caught by validation (EXISTS)
     assert.equal(dup.body.kind, 'EXISTS');
   });
+  await t.test('deletes records singly and in bulk, and protects records in use', async () => {
+    const mk = async (path, body) => (await request(app).post(path).send(body)).body.id;
+    const w = [await mk('/warehouses', { name: `${tag} DW1` }), await mk('/warehouses', { name: `${tag} DW2` })];
+    const p = [await mk('/parties', { name: `${tag} DP1` }), await mk('/parties', { name: `${tag} DP2` })];
+    const i = [await mk('/items', { sku: `${tag}-D1`, name: 'D1', hsn: '2523', gst_rate: 18, base_uom: 'NOS' }), await mk('/items', { sku: `${tag}-D2`, name: 'D2', hsn: '2523', gst_rate: 18, base_uom: 'NOS' })];
+
+    // single delete, then the same id again is a 404
+    for (const [path, ids] of [['warehouses', w], ['parties', p], ['items', i]]) {
+      assert.equal((await request(app).delete(`/${path}/${ids[0]}`)).status, 200);
+      assert.equal((await request(app).delete(`/${path}/${ids[0]}`)).status, 404);
+    }
+
+    // an item that holds a batch is protected; the others in the same bulk call still go
+    await pool.query('INSERT INTO batches (item_id,warehouse_id,batch_no,unit_cost,qty_on_hand) VALUES (?,?,?,?,?)', [i[1], w[1], 'B1', 10, 5]);
+    const blocked = await request(app).delete(`/items/${i[1]}`);
+    assert.equal(blocked.status, 409);
+    assert.match(blocked.body.error, /cannot be deleted/);
+    const bulkBlocked = await request(app).post('/warehouses/bulk-delete').send({ ids: [w[1]] });
+    assert.equal(bulkBlocked.body.deleted, 0);
+    assert.equal(bulkBlocked.body.failed, 1);
+
+    await pool.query('DELETE FROM batches WHERE item_id=?', [i[1]]);
+    const bulk = await request(app).post('/items/bulk-delete').send({ ids: [i[1], 99999999] });
+    assert.equal(bulk.body.deleted, 1);
+    assert.equal(bulk.body.failed, 1);
+    assert.equal((await request(app).post('/parties/bulk-delete').send({ ids: [p[1]] })).body.deleted, 1);
+    assert.equal((await request(app).post('/warehouses/bulk-delete').send({ ids: [w[1]] })).body.deleted, 1);
+    assert.equal((await request(app).post('/items/bulk-delete').send({ ids: [] })).status, 422);
+  });
 });
