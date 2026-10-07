@@ -183,3 +183,4 @@ input.gd-cell:focus,input.gd-cell:hover{border-color:var(--teal);background:#fff
 }
 
 .gd-modal-form select{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;background:#fff}.gd-modal-form .bad input,.gd-modal-form .bad select{border-color:#b3261e}.gd-form-err{margin:0;padding:0 16px 10px;color:#b3261e;font-size:13px}
+.gd-rowactions{white-space:nowrap}.gd-rowactions .gd-btn{padding:6px 10px;margin-right:6px}

@@ -79,4 +79,38 @@ test('single-entry master forms', { skip: !process.env.DATABASE_URL }, async (t)
     assert.equal((await request(app).post('/warehouses/bulk-delete').send({ ids: [w[1]] })).body.deleted, 1);
     assert.equal((await request(app).post('/items/bulk-delete').send({ ids: [] })).status, 422);
   });
+  await t.test('edits items and parties, keeps keys unique and locks unit/valuation once stock exists', async () => {
+    const item = (await request(app).post('/items').send({ sku: `${tag}-E1`, name: 'Edit me', hsn: '2523', gst_rate: 18, base_uom: 'NOS', valuation: 'FIFO' })).body.id;
+    const other = (await request(app).post('/items').send({ sku: `${tag}-E2`, name: 'Other', hsn: '2523', gst_rate: 18, base_uom: 'NOS' })).body.id;
+    const got = await request(app).get(`/items/${item}`);
+    assert.equal(got.body.sku, `${tag}-E1`);
+    assert.equal(got.body.batch_tracked, 'false');
+
+    const ok = await request(app).patch(`/items/${item}`).send({ name: 'Edited', gst_rate: 5, brand: 'B' });
+    assert.equal(ok.status, 200);
+    const [[row]] = await pool.query('SELECT name,gst_rate,brand,sku FROM items WHERE id=?', [item]);
+    assert.deepEqual([row.name, Number(row.gst_rate), row.brand, row.sku], ['Edited', 5, 'B', `${tag}-E1`]);
+    assert.equal((await request(app).patch(`/items/${item}`).send({ sku: `${tag}-E1`, name: 'Same sku is fine' })).status, 200);
+    const dup = await request(app).patch(`/items/${item}`).send({ sku: `${tag}-E2` });
+    assert.equal(dup.status, 422);
+    assert.equal(dup.body.field, 'sku');
+    assert.equal((await request(app).patch(`/items/${item}`).send({ hsn: '12' })).status, 422);
+    assert.equal((await request(app).patch('/items/99999999').send({ name: 'x' })).status, 404);
+
+    const wh = (await request(app).post('/warehouses').send({ name: `${tag} EW` })).body.id;
+    await pool.query('INSERT INTO batches (item_id,warehouse_id,batch_no,unit_cost,qty_on_hand) VALUES (?,?,?,?,?)', [item, wh, 'EB1', 10, 5]);
+    const locked = await request(app).patch(`/items/${item}`).send({ base_uom: 'KG' });
+    assert.equal(locked.status, 409);
+    assert.equal((await request(app).patch(`/items/${item}`).send({ name: 'Still editable' })).status, 200);
+    await pool.query('DELETE FROM batches WHERE item_id=?', [item]);
+    assert.equal((await request(app).patch(`/items/${item}`).send({ base_uom: 'KG' })).status, 200);
+
+    const party = (await request(app).post('/parties').send({ name: `${tag} EP`, mobile: '9876543210' })).body.id;
+    const p = await request(app).patch(`/parties/${party}`).send({ party_type: 'SUPPLIER', credit_limit: 1000, mobile: '+91 98765 11111' });
+    assert.equal(p.status, 200);
+    const [[prow]] = await pool.query('SELECT party_type,credit_limit,mobile FROM parties WHERE id=?', [party]);
+    assert.deepEqual([prow.party_type, Number(prow.credit_limit), prow.mobile], ['SUPPLIER', 1000, '9876511111']);
+    assert.equal((await request(app).patch(`/parties/${party}`).send({ gstin: 'BAD' })).status, 422);
+    await request(app).post('/warehouses/bulk-delete').send({ ids: [wh] });
+  });
 });
