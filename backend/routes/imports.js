@@ -2,6 +2,7 @@ import { Router } from "express";
 import express from "express";
 import { pool, q } from "../db.js";
 import { ORG } from "../org.js";
+import { syncSettingsForItem, syncSettingsForWarehouse } from "../services/inventory/masterSync.js";
 import { parseCsv, suggestUom } from "../importer.js";
 import { XLSX_MIME, MAX_IMPORT_ROWS, canonicalHeader, rowsFromXlsx, rowsFromJson, googleSheetExportUrl, buildTemplate, SAMPLE_ROWS } from "../importFormats.js";
 
@@ -268,6 +269,8 @@ export const insertMaster = async (c, type, p) => {
   } else {
     [res] = await c.query("INSERT INTO parties (org_id,name,gstin,mobile,credit_limit,terms,party_type,status,preferred) VALUES (?,?,?,?,?,?,?,?,?)", [ORG,p.name,p.gstin ? p.gstin.toUpperCase() : null,p.mobile||null,Number(p.credit_limit||0),p.terms||"Net 30",String(p.party_type||"CUSTOMER").toUpperCase(),String(p.status||"ACTIVE").toUpperCase(),asBool(p.preferred)]);
   }
+  if (type === "ITEMS") await syncSettingsForItem(c, res.insertId);
+  else if (type === "WAREHOUSES") await syncSettingsForWarehouse(c, res.insertId);
   return res.insertId;
 };
 
