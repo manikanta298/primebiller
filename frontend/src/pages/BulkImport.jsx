@@ -20,8 +20,8 @@ export default function BulkImport({ route }) {
   const initial=TYPES[query.get('type')?.toUpperCase()] ? query.get('type').toUpperCase() : 'ITEMS';
   const [type,setType]=useState(initial),[job,setJob]=useState(null),[rows,setRows]=useState([]),[msg,setMsg]=useState(''),[sheetUrl,setSheetUrl]=useState('');
   const meta=TYPES[type];
-  const refresh=async(id)=>{const s=await api(`/imports/${id}`);setJob(s);setRows(await api(`/imports/${id}/rows?errorsOnly=1`));};
-  const show=async(body)=>{setJob(body);setRows(await api(`/imports/${body.job.id}/rows?errorsOnly=1`));setMsg('');};
+  const refresh=async(id)=>{const s=await api(`/imports/${id}`);setJob(s);setRows(await api(`/imports/${id}/rows?limit=5000`));};
+  const show=async(body)=>{setJob(body);setRows(await api(`/imports/${body.job.id}/rows?limit=5000`));setMsg('');};
   const upload=async(file)=>{
     try{
       const ext=file.name.split('.').pop().toLowerCase();
@@ -37,7 +37,7 @@ export default function BulkImport({ route }) {
     try{setMsg('Reading Google Sheet…');await show(await api('/imports/from-sheet',{method:'POST',headers:H,body:JSON.stringify({type,url:sheetUrl})}));}
     catch(e){setMsg(e.message||'Could not read the sheet');}
   };
-  const edit=async(row,field,value)=>{try{const s=await api(`/imports/${job.job.id}/rows/${row}`,{method:'PATCH',headers:H,body:JSON.stringify({field,value})});setJob(s);setRows(await api(`/imports/${job.job.id}/rows?errorsOnly=1`));}catch(e){setMsg(e.message);}};
+  const edit=async(row,field,value)=>{try{const s=await api(`/imports/${job.job.id}/rows/${row}`,{method:'PATCH',headers:H,body:JSON.stringify({field,value})});setJob(s);setRows(await api(`/imports/${job.job.id}/rows?limit=5000`));}catch(e){setMsg(e.message);}};
   const commit=async()=>{try{const r=await api(`/imports/${job.job.id}/commit`,{method:'POST'});setMsg(`Committed ${r.posted} ${meta.label.toLowerCase()}`);await refresh(job.job.id);}catch(e){setMsg(e.message);}};
   const tpl=(ext,sample)=>`${base}/api/imports/templates/${type.toLowerCase()}.${ext}${sample?'?sample=1':''}`;
   const downloadSample=()=>{const blob=new Blob([meta.columns.join(',')+'\n'+sample[type].map(csvEscape).join(',')+'\n'],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`${type.toLowerCase()}-sample.csv`;a.click();URL.revokeObjectURL(a.href);};
@@ -48,7 +48,7 @@ export default function BulkImport({ route }) {
     {job&&<div className="gd-card gd-table-card"><div className="gd-table-title"><b>{meta.label} import</b><span>{job.job.rows_total} rows · {job.counts.errors} errors · {job.job.status}</span></div>
       <div className="gd-table-scroll"><table className="gd-t"><thead><tr><th>ROW</th>{meta.columns.map(c=><th key={c}>{c.toUpperCase()}</th>)}<th>VALIDATION</th></tr></thead>
       <tbody>{rows.map(r=>{const p=typeof r.payload==='string'?JSON.parse(r.payload):r.payload;return <tr key={r.row_no}><td className="gd-mono">{r.row_no}</td>{meta.columns.map(c=><td key={c}>{r.error_kind&&r.error_field&&r.error_field!==c?p[c]||'—':<input className={r.error_kind?'gd-err':'gd-cell'} defaultValue={p[c]||''} onBlur={e=>{if(e.target.value!==String(p[c]??''))edit(r.row_no,c,e.target.value)}} />}</td>)}<td>{r.error_msg||'—'}</td></tr>})}</tbody></table></div>
-      <div className="gd-pager"><span>{rows.length} error rows shown</span><button className="gd-btn pri" disabled={job.counts.errors>0} onClick={commit}>Commit {job.counts.valid} valid rows</button></div>
+      <div className="gd-pager"><span>{rows.length} of {job.job.rows_total} rows loaded · {job.counts.errors} errors</span><button className="gd-btn pri" disabled={job.counts.errors>0} onClick={commit}>Commit {job.counts.valid} valid rows</button></div>
     </div>}
     {!job&&<div className="gd-card gd-empty">Choose an import type, download its template, fill the CSV, and upload it. Invalid rows are kept out of the commit until corrected.</div>}
   </>;
