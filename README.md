@@ -87,3 +87,7 @@ Templates (Excel with dropdowns and an Instructions sheet, CSV, JSON, blank or w
 3. `clear-test-data.sql` – deletes test data (same as the options below).
 
 **Delete test data.** Settings → *Data & backup* → *Delete test data* (master admin only; shows row counts, requires typing `DELETE TEST DATA`). From a shell: `npm run data:clear -- --scope=transactions|all` previews, add `--yes` to delete. `transactions` clears documents and stock; `all` also clears items, parties and godowns. The organization, units and user accounts are always kept. This deletes across the whole database, so do not use it on data you want to keep.
+
+## Database schema and migrations
+
+The whole schema lives in one file, [`backend/sql/unified-schema.sql`](backend/sql/unified-schema.sql). Changes after that baseline are small numbered files in [`backend/migrations/`](backend/migrations). A new database gets the unified file; an existing one gets only the migrations it has not applied (tracked in `schema_migrations`). `npm start` does this automatically on every deploy. When you change the schema, add a migration **and** mirror it in the unified file; `npm test` fails if they differ. Step by step: [`backend/migrations/README.md`](backend/migrations/README.md).

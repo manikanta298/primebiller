@@ -7,12 +7,13 @@
     "dev": "node --watch server.js",
     "start": "npm run db:migrate && node server.js",
     "db:schema": "node scripts/apply-schema.js",
-    "db:migrate": "node scripts/migrate-auth.js && node scripts/migrate-pending.js",
+    "db:migrate": "node scripts/migrate.js",
     "seed:data": "node seed-data.js && node seed-pending-data.js",
     "setup": "npm run db:schema && npm run db:migrate && npm run seed:data",
     "test": "node --test",
     "data:clear": "node scripts/clear-data.js",
-    "templates:build": "node scripts/build-templates.js"
+    "templates:build": "node scripts/build-templates.js",
+    "migrate:new": "node scripts/new-migration.js"
   },
   "dependencies": {
     "cors": "^2.8.6",
