@@ -1,10 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { api, inr } from '../api';
 import { Tag } from './ScreenKit';
+import DataReset from './DataReset';
 
 export default function Settings(){
-  const [data,setData]=useState(null),[tab,setTab]=useState('Organization'),[draft,setDraft]=useState(null),[msg,setMsg]=useState('');
+  const [data,setData]=useState(null),[tab,setTab]=useState('Organization'),[draft,setDraft]=useState(null),[msg,setMsg]=useState(''),[loadErr,setLoadErr]=useState('');
   const load=()=>api('/settings').then(d=>{
+    if(!d.org)throw new Error('No organization record found. Run backend/sql/reference-data.sql or npm run seed:data.');
+    setLoadErr('');
     setData(d);
     setDraft({
       name:d.org.name,gstin:d.org.gstin,stateCode:d.org.state_code,address:d.org.address,
@@ -13,10 +16,10 @@ export default function Settings(){
       ewayThreshold:d.org.eway_threshold,
       warehouses:d.warehouses.map(w=>({...w,allow_negative:!!w.allow_negative}))
     });
-  });
+  }).catch(e=>setLoadErr(e.message||'Settings could not be loaded'));
   useEffect(()=>{load()},[]);
   const save=async()=>{try{await api('/settings',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(draft)});setMsg('Changes saved and audited');await load()}catch(e){setMsg(e.message)}};
-  if(!draft)return <div className="gd-soon">Loading settings…</div>;
+  if(!draft)return loadErr?<div className="gd-soon" role="alert">Could not load settings: {loadErr} <button className="gd-btn" onClick={load}>Retry</button></div>:<div className="gd-soon">Loading settings…</div>;
   const tabs=['Organization','Tax & GST','Numbering','Users & access','Print profiles','Notifications','Integrations','Data & backup'];
   const updateWarehouse=(needle,key,value)=>setDraft({...draft,warehouses:draft.warehouses.map(w=>w.name.includes(needle)?{...w,[key]:value}:w)});
   return <>
@@ -24,6 +27,7 @@ export default function Settings(){
     <div className="gd-settings">
       <aside className="gd-settings-nav">{tabs.map(t=><button key={t} className={tab===t?'on':''} onClick={()=>setTab(t)}>{t}</button>)}</aside>
       <section className="gd-card gd-settings-main">
+        {tab==='Data & backup'&&<DataReset/>}
         <div className="gd-settings-section"><div><h3>General</h3><p>Changes are audited with user, timestamp and old/new value.</p></div>
           <div className="gd-settings-grid">
             <label><small>ORGANIZATION NAME</small><input value={draft.name} onChange={e=>setDraft({...draft,name:e.target.value})}/></label>
