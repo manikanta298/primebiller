@@ -3,6 +3,7 @@ import express from "express";
 import { pool, q } from "../db.js";
 import { ORG } from "../org.js";
 import { parseCsv } from "../importer.js";
+import { XLSX_MIME, MAX_IMPORT_ROWS, rowsFromXlsx, rowsFromJson, googleSheetExportUrl, buildTemplate, SAMPLE_ROWS } from "../importFormats.js";
 
 const r = Router();
 
@@ -119,17 +120,75 @@ for (const [type, meta] of Object.entries(TYPES)) {
   });
 }
 
-r.post("/imports", express.text({ type: "text/csv", limit: "20mb" }), async (req, res, next) => {
-  const type = normalizeType(req.query.type);
-  if (!TYPES[type]) return next();
-  const data = normalizeRows(type, parseCsv(String(req.body || "")));
-  if (!data.length) return res.status(422).json({ error: "CSV contains no data rows" });
+for (const [type, meta] of Object.entries(TYPES)) {
+  const slug = type.toLowerCase();
+  // ?sample=1 fills the template with a few dummy rows.
+  r.get(`/imports/templates/${slug}.xlsx`, async (req, res) => {
+    const uoms = (await q("SELECT code FROM uoms ORDER BY code")).map((x) => x.code);
+    const buf = await buildTemplate(type, meta.columns, meta.required, { sample: req.query.sample === "1", uoms: uoms.length ? uoms : undefined });
+    res.setHeader("Content-Type", XLSX_MIME);
+    res.setHeader("Content-Disposition", `attachment; filename="${slug}-${req.query.sample === "1" ? "sample" : "template"}.xlsx"`);
+    res.send(buf);
+  });
+  r.get(`/imports/templates/${slug}.json`, (req, res) => {
+    const rows = req.query.sample === "1" ? SAMPLE_ROWS[type] : [Object.fromEntries(meta.columns.map((c) => [c, ""]))];
+    res.setHeader("Content-Disposition", `attachment; filename="${slug}-${req.query.sample === "1" ? "sample" : "template"}.json"`);
+    res.json(rows);
+  });
+}
+
+// Shared by file upload and Google Sheets import: validate rows, create the job, return its summary.
+const createJob = async (res, type, rawRows, filename) => {
+  const data = normalizeRows(type, rawRows);
+  if (!data.length) return res.status(422).json({ error: "The file contains no data rows" });
+  if (data.length > MAX_IMPORT_ROWS) return res.status(422).json({ error: `Too many rows (${data.length}). Import at most ${MAX_IMPORT_ROWS} rows at a time.` });
   const headerError = validateHeaders(type, data);
   if (headerError) return res.status(422).json({ error: headerError });
   const vals = await validate(type, data);
-  const job = await q("INSERT INTO import_jobs (org_id,filename,import_type,status,rows_total) VALUES (?,?,?,'VALIDATED',?)", [ORG, req.query.filename || `${type.toLowerCase()}.csv`, type, data.length]);
+  const job = await q("INSERT INTO import_jobs (org_id,filename,import_type,status,rows_total) VALUES (?,?,?,'VALIDATED',?)", [ORG, filename, type, data.length]);
   for (let i = 0; i < vals.length; i += 500) await q("INSERT INTO import_rows (job_id,row_no,payload,error_kind,error_msg,error_field) VALUES ?", [vals.slice(i, i + 500).map((x) => [job.insertId, ...x])]);
-  res.status(201).json(await summary(job.insertId));
+  return res.status(201).json(await summary(job.insertId));
+};
+
+// Accepts CSV (text/csv), Excel (.xlsx) or JSON (application/json) bodies.
+r.post("/imports",
+  express.text({ type: "text/csv", limit: "20mb" }),
+  express.raw({ type: XLSX_MIME, limit: "20mb" }),
+  async (req, res, next) => {
+    const type = normalizeType(req.query.type);
+    if (!TYPES[type]) return next();
+    let rows;
+    try {
+      if (req.is("text/csv")) rows = parseCsv(String(req.body || ""));
+      else if (req.is(XLSX_MIME)) rows = await rowsFromXlsx(req.body);
+      else if (req.is("json")) rows = rowsFromJson(req.body);
+      else return res.status(415).json({ error: "Upload a .csv, .xlsx or .json file" });
+    } catch (e) {
+      return res.status(422).json({ error: e.message });
+    }
+    return createJob(res, type, rows, String(req.query.filename || `${type.toLowerCase()}-import`).slice(0, 150));
+  });
+
+// Import straight from a Google Sheet shared as "Anyone with the link can view".
+r.post("/imports/from-sheet", async (req, res, next) => {
+  const type = normalizeType(req.body?.type);
+  if (!TYPES[type]) return next();
+  const target = googleSheetExportUrl(req.body?.url);
+  if (!target) return res.status(422).json({ error: "Paste a Google Sheets link that starts with https://docs.google.com/spreadsheets/d/" });
+  let rows;
+  try {
+    const resp = await fetch(target.url, { signal: AbortSignal.timeout(20_000) });
+    const kind = resp.headers.get("content-type") || "";
+    if (!resp.ok || kind.includes("text/html")) throw new Error("not-public");
+    const buf = Buffer.from(await resp.arrayBuffer());
+    if (buf.length > 20 * 1024 * 1024) return res.status(422).json({ error: "The sheet is larger than 20 MB" });
+    rows = target.format === "csv" ? parseCsv(buf.toString("utf8")) : await rowsFromXlsx(buf);
+  } catch (e) {
+    return res.status(422).json({ error: e.message === "not-public" || e.name === "TimeoutError" || e.name === "TypeError"
+      ? "Could not read the sheet. Set sharing to “Anyone with the link can view” and try again."
+      : e.message });
+  }
+  return createJob(res, type, rows, "google-sheet");
 });
 
 r.get("/imports/:id", async (req, res, next) => {
