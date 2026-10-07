@@ -101,10 +101,10 @@ test('bulk import formats: xlsx, json, google sheets', { skip: !process.env.DATA
   });
 
   await t.test('error messages say what was wrong and what was found', async () => {
-    const wrong = await workbook((wb) => { const ws = wb.addWorksheet('Data'); ws.addRow(['Place', 'Capacity']); ws.addRow(['A', 1]); });
+    const wrong = await workbook((wb) => { const ws = wb.addWorksheet('Data'); ws.addRow(['Place', 'Zone']); ws.addRow(['A', 1]); });
     const miss = await uploadXlsx(wrong);
     assert.equal(miss.status, 422);
-    assert.match(miss.body.error, /Missing required column: name\. Columns found: place, capacity/);
+    assert.match(miss.body.error, /Missing required column: name\. Columns found: place, zone/);
 
     const headerOnly = await workbook((wb) => wb.addWorksheet('Data').addRow(['name', 'notes']));
     const none = await uploadXlsx(headerOnly);
@@ -118,6 +118,21 @@ test('bulk import formats: xlsx, json, google sheets', { skip: !process.env.DATA
     assert.equal(canonicalHeader('WAREHOUSES', 'Capacity'), 'max_stock');
     assert.equal(canonicalHeader('PARTIES', 'Contact'), 'mobile');
     assert.equal(canonicalHeader('PARTIES', 'Type'), 'party_type');
+  });
+
+  await t.test('merges data split across sheets and cleans Excel artefacts', async () => {
+    const { rowsFromXlsx } = await import('../importFormats.js');
+    const { cleanRow } = await import('../routes/imports.js');
+    const buf = await workbook((wb) => {
+      const a = wb.addWorksheet('Jan'); a.addRow(['Item Code', 'Item Name', 'HSN', 'GST %', 'UOM']);
+      const r = a.addRow(['A1', 'One', 902, 0.18, 'Bags']); r.getCell(4).numFmt = '0%';
+      const b = wb.addWorksheet('Feb'); b.addRow(['Item Code', 'Item Name', 'HSN', 'GST %', 'UOM']); b.addRow(['B1', 'Two', '2523', 5, 'Pcs']);
+    });
+    const rows = (await rowsFromXlsx(buf, { type: 'ITEMS', columns: ['sku', 'name', 'hsn', 'gst_rate', 'base_uom'] })).map((x) => cleanRow(x, 'ITEMS'));
+    assert.equal(rows.length, 2);
+    assert.deepEqual([rows[0].hsn, rows[0].gst_rate, rows[0].base_uom], ['0902', '18', 'BAG']);
+    assert.equal(rows[1].base_uom, 'NOS');
+    assert.equal(cleanRow({ mobile: '+91 98765-43210' }, 'PARTIES').mobile, '9876543210');
   });
 
   await t.test('imports from a shared Google Sheet link', async () => {
