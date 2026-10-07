@@ -1,6 +1,16 @@
--- PrimeBiller inventory & billing schema.
--- The target database is selected from DATABASE_URL by apply-schema.js.
--- Do not hard-code a database name here.
+-- PrimeBiller: the complete database schema, in one file. This is the single source of truth.
+--
+--   Empty database : `npm run db:schema` (or `npm run db:migrate`) runs this file and marks every
+--                    migration as already included.
+--   Existing one   : `npm run db:migrate` (also run by `npm start`) applies only the numbered files in
+--                    backend/migrations/ that the database has not seen yet.
+--
+-- RULE: every schema change is made twice, in the same pull request:
+--   1. a new small file in backend/migrations/   (npm run migrate:new -- short_description)
+--   2. the same change in this file, so a fresh install matches an upgraded database.
+-- `npm test` (test/schema.integration.test.js) fails if the two ever differ.
+--
+-- The target database comes from DATABASE_URL. Do not hard-code a database name here.
 
 CREATE TABLE organizations (
   id INT AUTO_INCREMENT PRIMARY KEY,
@@ -281,6 +291,15 @@ CREATE TABLE IF NOT EXISTS stock_adjustments (
   FOREIGN KEY (warehouse_id) REFERENCES warehouses(id),
   FOREIGN KEY (item_id) REFERENCES items(id),
   FOREIGN KEY (batch_id) REFERENCES batches(id)
+);
+
+-- Records which migrations this database has applied (managed by migrator.js).
+CREATE TABLE IF NOT EXISTS schema_migrations (
+  version VARCHAR(10) PRIMARY KEY,
+  name VARCHAR(150) NOT NULL,
+  checksum CHAR(64) NOT NULL,
+  applied_how ENUM('MIGRATION','BASELINE') NOT NULL,
+  applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 INSERT IGNORE INTO auth_bootstrap (id,master_admin_user_id) VALUES (1,NULL);
