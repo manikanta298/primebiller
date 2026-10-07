@@ -1,0 +1,18 @@
+[
+  {
+    "name": "Demo Godown A",
+    "notes": "Main yard",
+    "allow_negative": "false",
+    "default_uom": "BAG",
+    "default_reorder": "100",
+    "max_stock": "1000"
+  },
+  {
+    "name": "Demo Godown B",
+    "notes": "Overflow",
+    "allow_negative": "true",
+    "default_uom": "NOS",
+    "default_reorder": "10",
+    "max_stock": "500"
+  }
+]

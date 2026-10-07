@@ -1,0 +1,35 @@
+[
+  {
+    "sku": "DEMO-CEM-50",
+    "name": "Demo cement 50kg bag",
+    "hsn": "2523",
+    "gst_rate": "28",
+    "base_uom": "BAG",
+    "batch_tracked": "true",
+    "valuation": "FIFO",
+    "brand": "DemoBrand",
+    "category": "Cement"
+  },
+  {
+    "sku": "DEMO-TMT-12",
+    "name": "Demo TMT bar 12mm",
+    "hsn": "7214",
+    "gst_rate": "18",
+    "base_uom": "MT",
+    "batch_tracked": "true",
+    "valuation": "WAVG",
+    "brand": "",
+    "category": "Steel"
+  },
+  {
+    "sku": "DEMO-SAND-1",
+    "name": "Demo river sand",
+    "hsn": "2505",
+    "gst_rate": "5",
+    "base_uom": "CFT",
+    "batch_tracked": "false",
+    "valuation": "FIFO",
+    "brand": "",
+    "category": "Aggregates"
+  }
+]
