@@ -64,3 +64,26 @@ The raw OTP is intentionally **not persisted** in the database; only its SHA-256
 | Sales order (credit check, stock hold), Delivery challan (FIFO batches, override reason, e-way bill) | done |
 | Convert challans to tax invoice (gapless numbering, advances), In-transit challan (`#/challans/transit`: e-way extend / Part-B / cancel, mark delivered) | done |
 | Item batches (`#/items`), Bulk import (`#/import`: CSV upload, inline fixes, bulk fixes, 500-row commits), Print preview (`#/print`: 32-col thermal + A4 invoice, ESC/POS base64) | done |
+
+## Master data: forms, bulk import, SQL scripts and cleanup
+
+**Add one record.** Items, Parties and Godowns each have a *New …* button that opens a validated form (same rules as the bulk importer).
+
+**Bulk import** (Bulk import page, or `POST /api/imports?type=ITEMS|WAREHOUSES|PARTIES`):
+
+| Source | How |
+|---|---|
+| Excel | Upload a `.xlsx` (uses the `Data` sheet, or the first sheet). Save older `.xls` files as `.xlsx` first. |
+| CSV | Upload a `.csv` (Excel's "CSV UTF-8" is fine). |
+| JSON | Upload a `.json` file: an array of objects, or `{ "rows": [ … ] }`. Keys are the column names. |
+| Google Sheets | Paste the sheet link on the import page. Share the sheet as **Anyone with the link can view**. A link containing `#gid=…` imports that tab; otherwise the first tab is used. Or download the sheet as `.xlsx` / `.csv` and upload it. |
+
+Templates (Excel with dropdowns and an Instructions sheet, CSV, JSON, blank or with sample rows) are in [`/templates`](templates) and are also served from the import page. Regenerate them with `npm run templates:build` in `backend/`. Limits: 5,000 rows and 20 MB per upload. Rows are validated first; fix errors inline, then commit.
+
+**MySQL scripts** (`backend/sql/`, run in this order on a new database after `npm run db:schema`):
+
+1. `reference-data.sql` – units of measure and one organization row. Without these, Settings stays on "Loading settings…" and imports fail with "Default UOM does not exist". Safe to re-run.
+2. `sample-masters.sql` – optional dummy godowns, parties and items (prefixed `Demo`). Safe to re-run.
+3. `clear-test-data.sql` – deletes test data (same as the options below).
+
+**Delete test data.** Settings → *Data & backup* → *Delete test data* (master admin only; shows row counts, requires typing `DELETE TEST DATA`). From a shell: `npm run data:clear -- --scope=transactions|all` previews, add `--yes` to delete. `transactions` clears documents and stock; `all` also clears items, parties and godowns. The organization, units and user accounts are always kept. This deletes across the whole database, so do not use it on data you want to keep.
