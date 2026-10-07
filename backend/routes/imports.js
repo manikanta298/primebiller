@@ -3,7 +3,7 @@ import express from "express";
 import { pool, q } from "../db.js";
 import { ORG } from "../org.js";
 import { parseCsv } from "../importer.js";
-import { XLSX_MIME, MAX_IMPORT_ROWS, rowsFromXlsx, rowsFromJson, googleSheetExportUrl, buildTemplate, SAMPLE_ROWS } from "../importFormats.js";
+import { XLSX_MIME, MAX_IMPORT_ROWS, canonicalHeader, rowsFromXlsx, rowsFromJson, googleSheetExportUrl, buildTemplate, SAMPLE_ROWS } from "../importFormats.js";
 
 const r = Router();
 
@@ -17,12 +17,15 @@ const normalizeType = (value) => String(value || "").trim().toUpperCase();
 const asBool = (value) => ["1","true","yes","y"].includes(String(value || "").trim().toLowerCase()) ? 1 : 0;
 const required = (p, key) => String(p[key] ?? "").trim();
 const validNumber = (v) => /^\d+(\.\d+)?$/.test(String(v ?? "").trim());
-export const cleanRow = (p) => Object.fromEntries(Object.entries(p).map(([k,v]) => [String(k).trim().toLowerCase(), v === true ? "true" : v === false ? "false" : String(v ?? "").trim()]));
-const normalizeRows = (type, data) => data.map(cleanRow);
+export const cleanRow = (p, type) => Object.fromEntries(Object.entries(p).map(([k,v]) => [canonicalHeader(type, k), v === true ? "true" : v === false ? "false" : String(v ?? "").trim()]));
+const normalizeRows = (type, data) => data.map((p) => cleanRow(p, type));
 
 const validateHeaders = (type, data) => {
-  const missing = TYPES[type].required.filter((x) => !Object.keys(data[0] || {}).includes(x));
-  return missing.length ? `Missing required CSV columns: ${missing.join(", ")}` : null;
+  const found = Object.keys(data[0] || {});
+  const missing = TYPES[type].required.filter((x) => !found.includes(x));
+  if (!missing.length) return null;
+  const seen = found.length ? found.slice(0, 12).join(", ") : "(none)";
+  return `Missing required column${missing.length > 1 ? "s" : ""}: ${missing.join(", ")}. Columns found: ${seen}. Download the template to see the expected headers.`;
 };
 
 const existingSets = async (type) => {
@@ -140,7 +143,7 @@ for (const [type, meta] of Object.entries(TYPES)) {
 // Shared by file upload and Google Sheets import: validate rows, create the job, return its summary.
 const createJob = async (res, type, rawRows, filename) => {
   const data = normalizeRows(type, rawRows);
-  if (!data.length) return res.status(422).json({ error: "The file contains no data rows" });
+  if (!data.length) return res.status(422).json({ error: "No data rows found. Put the column headers in one row and at least one record under it (replace the sample rows in the template)." });
   if (data.length > MAX_IMPORT_ROWS) return res.status(422).json({ error: `Too many rows (${data.length}). Import at most ${MAX_IMPORT_ROWS} rows at a time.` });
   const headerError = validateHeaders(type, data);
   if (headerError) return res.status(422).json({ error: headerError });
@@ -160,7 +163,7 @@ r.post("/imports",
     let rows;
     try {
       if (req.is("text/csv")) rows = parseCsv(String(req.body || ""));
-      else if (req.is(XLSX_MIME)) rows = await rowsFromXlsx(req.body);
+      else if (req.is(XLSX_MIME)) rows = await rowsFromXlsx(req.body, { type, columns: TYPES[type].columns });
       else if (req.is("json")) rows = rowsFromJson(req.body);
       else return res.status(415).json({ error: "Upload a .csv, .xlsx or .json file" });
     } catch (e) {
@@ -182,7 +185,7 @@ r.post("/imports/from-sheet", async (req, res, next) => {
     if (!resp.ok || kind.includes("text/html")) throw new Error("not-public");
     const buf = Buffer.from(await resp.arrayBuffer());
     if (buf.length > 20 * 1024 * 1024) return res.status(422).json({ error: "The sheet is larger than 20 MB" });
-    rows = target.format === "csv" ? parseCsv(buf.toString("utf8")) : await rowsFromXlsx(buf);
+    rows = target.format === "csv" ? parseCsv(buf.toString("utf8")) : await rowsFromXlsx(buf, { type, columns: TYPES[type].columns });
   } catch (e) {
     return res.status(422).json({ error: e.message === "not-public" || e.name === "TimeoutError" || e.name === "TypeError"
       ? "Could not read the sheet. Set sharing to “Anyone with the link can view” and try again."
