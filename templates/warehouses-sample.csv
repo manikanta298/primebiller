@@ -1,3 +1,6 @@
 name,notes,allow_negative,default_uom,default_reorder,max_stock
-"Demo Godown A","Main yard","false","BAG","100","1000"
-"Demo Godown B","Overflow","true","NOS","10","500"
+Demo Godown A,Main yard,false,BAG,100,1000
+Demo Godown B,Overflow,true,NOS,10,500
+Demo Godown C,Secondary yard,false,KG,50,750
+Demo Godown D,Transit,false,NOS,25,300
+Demo Godown E,Finished goods,false,BAG,75,900

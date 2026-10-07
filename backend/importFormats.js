@@ -61,8 +61,8 @@ export const normalizeHeader = (h) =>
 
 const ALIASES = {
   ITEMS: { item_code: "sku", code: "sku", item_name: "name", product_name: "name", hsn_code: "hsn", hsn_sac: "hsn", gst: "gst_rate", gst_percent: "gst_rate", uom: "base_uom", unit: "base_uom", batch: "batch_tracked", batch_tracking: "batch_tracked" },
-  WAREHOUSES: { warehouse_name: "name", warehouse: "name", godown_name: "name", godown: "name", description: "notes", remarks: "notes", uom: "default_uom", reorder: "default_reorder", reorder_point: "default_reorder", reorder_level: "default_reorder", maximum_stock: "max_stock", allow_negative_stock: "allow_negative" },
-  PARTIES: { party_name: "name", customer_name: "name", supplier_name: "name", type: "party_type", gst_number: "gstin", gst_no: "gstin", phone: "mobile", mobile_no: "mobile", mobile_number: "mobile", credit: "credit_limit", payment_terms: "terms" },
+  WAREHOUSES: { warehouse_name: "name", warehouse: "name", godown_name: "name", godown: "name", description: "notes", remarks: "notes", location: "notes", address: "notes", uom: "default_uom", reorder: "default_reorder", reorder_point: "default_reorder", reorder_level: "default_reorder", capacity: "max_stock", warehouse_capacity: "max_stock", storage_capacity: "max_stock", maximum_stock: "max_stock", allow_negative_stock: "allow_negative" },
+  PARTIES: { party_name: "name", customer_name: "name", supplier_name: "name", type: "party_type", party_type_name: "party_type", gst_number: "gstin", gst_no: "gstin", phone: "mobile", contact: "mobile", contact_number: "mobile", mobile_no: "mobile", mobile_number: "mobile", credit: "credit_limit", payment_terms: "terms" },
 };
 export const canonicalHeader = (type, h) => {
   const n = normalizeHeader(h);

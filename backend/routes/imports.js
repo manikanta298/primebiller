@@ -201,8 +201,11 @@ r.get("/imports/:id", async (req, res, next) => {
 
 r.get("/imports/:id/rows", async (req, res, next) => {
   if (!await loadTypedJob(req.params.id)) return next();
-  const only = req.query.errorsOnly !== "0";
-  res.json(await q(`SELECT row_no,payload,error_kind,error_msg,error_field,fixed FROM import_rows WHERE job_id=? ${only ? "AND error_kind IS NOT NULL AND fixed=0" : ""} ORDER BY row_no LIMIT 100 OFFSET ?`, [req.params.id, Math.max(0, Number(req.query.cursor || 0))]));
+  const only = String(req.query.errorsOnly || "") === "1";
+  const limit = Math.min(MAX_IMPORT_ROWS, Math.max(1, Number(req.query.limit) || MAX_IMPORT_ROWS));
+  const offset = Math.max(0, Number(req.query.offset ?? req.query.cursor ?? 0));
+  const rows = await q(`SELECT row_no,payload,error_kind,error_msg,error_field,fixed FROM import_rows WHERE job_id=? ${only ? "AND error_kind IS NOT NULL AND fixed=0" : ""} ORDER BY row_no LIMIT ? OFFSET ?`, [req.params.id, limit, offset]);
+  res.json(rows);
 });
 
 r.patch("/imports/:id/rows/:no", async (req, res, next) => {

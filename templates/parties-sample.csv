@@ -1,3 +1,6 @@
 name,party_type,gstin,mobile,credit_limit,terms,status,preferred
-"Demo Customer Traders","CUSTOMER","36ABCDE1234F1Z5","9876543210","50000","Net 30","ACTIVE","false"
-"Demo Supplier Cements","SUPPLIER","","9123456780","0","Net 15","ACTIVE","true"
+Demo Customer Traders,CUSTOMER,36ABCDE1234F1Z5,9876543210,50000,Net 30,ACTIVE,false
+Demo Supplier Cements,SUPPLIER,,9123456780,0,Net 15,ACTIVE,true
+Demo Build Mart,CUSTOMER,36FGHIJ5678K1Z6,9988776655,75000,Net 30,ACTIVE,false
+Demo Steel Supply,SUPPLIER,,9000011111,0,Net 15,ACTIVE,false
+Demo Infra Stores,CUSTOMER,36LMNOP9012Q1Z7,9111122222,100000,Net 45,CREDIT_WATCH,false

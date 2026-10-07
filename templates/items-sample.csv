@@ -1,4 +1,6 @@
 sku,name,hsn,gst_rate,base_uom,batch_tracked,valuation,brand,category
-"DEMO-CEM-50","Demo cement 50kg bag","2523","28","BAG","true","FIFO","DemoBrand","Cement"
-"DEMO-TMT-12","Demo TMT bar 12mm","7214","18","MT","true","WAVG","","Steel"
-"DEMO-SAND-1","Demo river sand","2505","5","CFT","false","FIFO","","Aggregates"
+DEMO-CEM-50,Demo cement 50kg bag,2523,28,BAG,true,FIFO,DemoBrand,Cement
+DEMO-TMT-12,Demo TMT bar 12mm,7214,18,MT,true,WAVG,,Steel
+DEMO-SAND-1,Demo river sand,2505,5,CFT,false,FIFO,,Aggregates
+DEMO-BRICK-1,Demo clay bricks,6901,5,NOS,false,FIFO,DemoBuild,Bricks
+DEMO-PIPE-2,Demo PVC pipe 2m,3917,18,NOS,false,WAVG,DemoPlastics,Pipes
