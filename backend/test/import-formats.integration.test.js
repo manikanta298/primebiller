@@ -60,6 +60,58 @@ test('bulk import formats: xlsx, json, google sheets', { skip: !process.env.DATA
     assert.equal((await request(app).post('/imports?type=WAREHOUSES').set('Content-Type', 'text/plain').send('name\nx')).status, 415);
   });
 
+  const workbook = async (build) => {
+    const { default: ExcelJS } = await import('exceljs');
+    const wb = new ExcelJS.Workbook();
+    build(wb);
+    return Buffer.from(await wb.xlsx.writeBuffer());
+  };
+  const uploadXlsx = (buf) => request(app).post('/imports?type=WAREHOUSES&filename=Warehouses.xlsx').set('Content-Type', XLSX).send(buf);
+
+  await t.test('real-world Excel files: friendly headers, title rows, data on a later sheet', async () => {
+    // Title rows above the header, headers like "Godown Name" and "Default UOM *".
+    const titled = await workbook((wb) => {
+      const ws = wb.addWorksheet('Sheet1');
+      ws.addRow(['Godown master list']);
+      ws.addRow([]);
+      ws.addRow(['Godown Name', 'Remarks', 'Default UOM *', 'Max Stock']);
+      ws.addRow([`${tag} Titled`, 'north yard', 'bag', 250]);
+    });
+    const a = await uploadXlsx(titled);
+    assert.equal(a.status, 201);
+    assert.equal(a.body.job.rows_total, 1);
+    assert.equal(Number(a.body.counts.errors), 0);
+
+    // First sheet is unrelated; the data is on the second sheet.
+    const second = await workbook((wb) => {
+      wb.addWorksheet('Summary').addRow(['Report', 'generated today']);
+      const ws = wb.addWorksheet('Godowns');
+      ws.addRow(['name', 'notes']);
+      ws.addRow([`${tag} Later`, 'x']);
+    });
+    const b = await uploadXlsx(second);
+    assert.equal(b.status, 201);
+    assert.equal(b.body.job.rows_total, 1);
+  });
+
+  await t.test('CSV with spaced headers is accepted too', async () => {
+    const res = await request(app).post('/imports?type=WAREHOUSES&filename=g.csv').set('Content-Type', 'text/csv').send(`Warehouse Name,Reorder Level\n${tag} Csv,5\n`);
+    assert.equal(res.status, 201);
+    assert.equal(Number(res.body.counts.errors), 0);
+  });
+
+  await t.test('error messages say what was wrong and what was found', async () => {
+    const wrong = await workbook((wb) => { const ws = wb.addWorksheet('Data'); ws.addRow(['Place', 'Capacity']); ws.addRow(['A', 1]); });
+    const miss = await uploadXlsx(wrong);
+    assert.equal(miss.status, 422);
+    assert.match(miss.body.error, /Missing required column: name\. Columns found: place, capacity/);
+
+    const headerOnly = await workbook((wb) => wb.addWorksheet('Data').addRow(['name', 'notes']));
+    const none = await uploadXlsx(headerOnly);
+    assert.equal(none.status, 422);
+    assert.match(none.body.error, /No data rows found/);
+  });
+
   await t.test('imports from a shared Google Sheet link', async () => {
     const bad = await request(app).post('/imports/from-sheet').send({ type: 'WAREHOUSES', url: 'https://example.com/spreadsheets/d/abc' });
     assert.equal(bad.status, 422);
