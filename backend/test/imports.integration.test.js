@@ -57,7 +57,7 @@ test('typed master imports', { skip: !process.env.DATABASE_URL }, async (t) => {
     assert.equal((await post('WAREHOUSES', 'name\n')).status, 422);
     const missing = await post('ITEMS', 'name\nX\n');
     assert.equal(missing.status, 422);
-    assert.match(missing.body.error, /Missing required CSV columns: sku/);
+    assert.match(missing.body.error, /Missing required columns: sku/);
   });
 
   await t.test('editing a row cannot introduce an in-file duplicate', async () => {
