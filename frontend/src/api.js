@@ -1,7 +1,10 @@
 export const base = import.meta.env.VITE_AUTH_URL || 'https://primebiller.onrender.com';
 export const api = async (path, opts = {}) => {
   const r = await fetch(`${base}/api${path}`, { credentials: 'include', ...opts });
-  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || r.statusText);
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    throw Object.assign(new Error(body.error || r.statusText), { field: body.field, status: r.status });
+  }
   return r.json();
 };
 export const inr = (n, d = 2) => Number(n ?? 0).toLocaleString('en-IN', { minimumFractionDigits: d, maximumFractionDigits: d });

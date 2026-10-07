@@ -1,0 +1,22 @@
+[
+  {
+    "name": "Demo Customer Traders",
+    "party_type": "CUSTOMER",
+    "gstin": "36ABCDE1234F1Z5",
+    "mobile": "9876543210",
+    "credit_limit": "50000",
+    "terms": "Net 30",
+    "status": "ACTIVE",
+    "preferred": "false"
+  },
+  {
+    "name": "Demo Supplier Cements",
+    "party_type": "SUPPLIER",
+    "gstin": "",
+    "mobile": "9123456780",
+    "credit_limit": "0",
+    "terms": "Net 15",
+    "status": "ACTIVE",
+    "preferred": "true"
+  }
+]

@@ -32,4 +32,12 @@ describe('Settings component',()=>{
     await waitFor(()=>expect(apiMock).toHaveBeenCalledWith('/settings',expect.objectContaining({method:'PUT'})));
     expect(screen.getByText(/Changes saved|saved and audited/i)).toBeInTheDocument();
   });
+
+  it('shows the error and a retry button instead of loading forever',async()=>{
+    apiMock.mockReset();
+    apiMock.mockImplementation(()=>Promise.resolve({warehouses:[]}));
+    render(<Settings/>);
+    expect(await screen.findByRole('alert')).toHaveTextContent('No organization record found');
+    expect(screen.getByText('Retry')).toBeInTheDocument();
+  });
 });

@@ -181,3 +181,5 @@ input.gd-cell:focus,input.gd-cell:hover{border-color:var(--teal);background:#fff
   .gd-table-title{align-items:flex-start;flex-direction:column;gap:4px}.gd-detail-grid,.gd-settings-grid,.gd-modal-form{grid-template-columns:1fr}
   .gd-settings-nav{grid-template-columns:1fr 1fr}.gd-kpi b{font-size:22px}
 }
+
+.gd-modal-form select{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;background:#fff}.gd-modal-form .bad input,.gd-modal-form .bad select{border-color:#b3261e}.gd-form-err{margin:0;padding:0 16px 10px;color:#b3261e;font-size:13px}

@@ -19,7 +19,7 @@ app.use(
   }),
 );
 
-app.use(express.json());
+app.use(express.json({ limit: "5mb" })); // JSON bulk imports can exceed the 100kb default
 
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true, service: "primebiller-api" });

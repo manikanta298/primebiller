@@ -1,0 +1,3 @@
+name,party_type,gstin,mobile,credit_limit,terms,status,preferred
+"Demo Customer Traders","CUSTOMER","36ABCDE1234F1Z5","9876543210","50000","Net 30","ACTIVE","false"
+"Demo Supplier Cements","SUPPLIER","","9123456780","0","Net 15","ACTIVE","true"

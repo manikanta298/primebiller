@@ -10,11 +10,14 @@
     "db:migrate": "node scripts/migrate-auth.js && node scripts/migrate-pending.js",
     "seed:data": "node seed-data.js && node seed-pending-data.js",
     "setup": "npm run db:schema && npm run db:migrate && npm run seed:data",
-    "test": "node --test"
+    "test": "node --test",
+    "data:clear": "node scripts/clear-data.js",
+    "templates:build": "node scripts/build-templates.js"
   },
   "dependencies": {
     "cors": "^2.8.6",
     "dotenv": "^18.0.5",
+    "exceljs": "^4.4.0",
     "express": "^5.1.0",
     "mysql2": "^3.24.5"
   },
