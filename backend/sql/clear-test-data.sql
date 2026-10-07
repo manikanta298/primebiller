@@ -12,6 +12,7 @@ DELETE FROM stock_transfers;
 DELETE FROM stock_adjustments;
 DELETE FROM import_rows;
 DELETE FROM import_jobs;
+DELETE FROM so_reservations;
 DELETE FROM stock_alerts;
 DELETE FROM receipt_allocations;
 DELETE FROM receipts;

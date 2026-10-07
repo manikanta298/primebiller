@@ -5,7 +5,7 @@ import { pool } from "./db.js";
 // "all" also clears those masters. Organization, units of measure and user accounts are always kept.
 const TRANSACTION_TABLES = [
   "stock_transfer_lines", "stock_transfers", "stock_adjustments", "import_rows", "import_jobs",
-  "stock_alerts", "receipt_allocations", "receipts", "invoices", "eway_bills", "challan_events",
+  "so_reservations", "stock_alerts", "receipt_allocations", "receipts", "invoices", "eway_bills", "challan_events",
   "challan_lines", "challans", "sales_order_lines", "sales_orders", "doc_counters",
   "stock_ledger", "batches", "item_warehouse_settings",
 ];

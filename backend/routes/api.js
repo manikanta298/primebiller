@@ -2,6 +2,7 @@ import { Router } from "express";
 import { requireSession } from "../auth.js";
 import { q } from "../db.js";
 import sales from "./sales.js";
+import receipts from "./receipts.js";
 import invoicing from "./invoicing.js";
 import fin from "./final.js";
 import pending from "./pending.js";
@@ -81,16 +82,16 @@ r.get("/search", async (req, res) => {
   const union = `
     SELECT 'SO' doc_type,s.doc_no,s.order_date doc_date,p.name customer,w.name godown,s.total amount,
       CASE WHEN s.status='DRAFT' THEN NULL ELSE s.total END balance_due,
-      CASE s.status WHEN 'PARTIAL' THEN 'PARTIAL' WHEN 'DELIVERED' THEN 'COMPLETED' WHEN 'INVOICED' THEN 'COMPLETED' ELSE 'PENDING' END status, 0 overdue_days
+      CASE s.status WHEN 'CANCELLED' THEN 'CANCELLED' WHEN 'PARTIAL' THEN 'PARTIAL' WHEN 'DELIVERED' THEN 'COMPLETED' WHEN 'INVOICED' THEN 'COMPLETED' ELSE 'PENDING' END status, 0 overdue_days
       FROM sales_orders s JOIN parties p ON p.id=s.party_id JOIN warehouses w ON w.id=s.warehouse_id
     UNION ALL SELECT 'DC',c.doc_no,DATE(c.challan_date),p.name,w.name,c.total,NULL,
-      CASE c.status WHEN 'IN_TRANSIT' THEN 'IN_TRANSIT' WHEN 'DRAFT' THEN 'PENDING' ELSE 'COMPLETED' END,0
+      CASE c.status WHEN 'CANCELLED' THEN 'CANCELLED' WHEN 'IN_TRANSIT' THEN 'IN_TRANSIT' WHEN 'DRAFT' THEN 'PENDING' ELSE 'COMPLETED' END,0
       FROM challans c JOIN parties p ON p.id=c.party_id JOIN warehouses w ON w.id=c.warehouse_id
     UNION ALL SELECT 'INV',i.doc_no,i.invoice_date,p.name,w.name,i.total,i.balance_due,
-      CASE WHEN i.balance_due>0 AND i.due_date<CURDATE() THEN 'OVERDUE' WHEN i.balance_due>0 THEN 'PENDING' ELSE 'COMPLETED' END,
+      CASE WHEN i.status='CANCELLED' THEN 'CANCELLED' WHEN i.balance_due>0 AND i.due_date<CURDATE() THEN 'OVERDUE' WHEN i.balance_due>0 THEN 'PENDING' ELSE 'COMPLETED' END,
       GREATEST(0,DATEDIFF(CURDATE(),i.due_date))
       FROM invoices i JOIN parties p ON p.id=i.party_id LEFT JOIN warehouses w ON w.id=i.warehouse_id
-    UNION ALL SELECT 'RCT',r.doc_no,r.receipt_date,p.name,'—',r.amount,r.unadjusted,'COMPLETED',0
+    UNION ALL SELECT 'RCT',r.doc_no,r.receipt_date,p.name,'—',r.amount,r.unadjusted,IF(r.status='CANCELLED','CANCELLED','COMPLETED'),0
       FROM receipts r JOIN parties p ON p.id=r.party_id`;
   const where = []; const params = [];
   if (term) { where.push("(customer LIKE ? OR doc_no LIKE ?)"); params.push(`%${term}%`, `%${term}%`); }
@@ -116,6 +117,7 @@ r.use(admin);
 r.use(pending);
 r.use(fin);
 r.use(invoicing);
+r.use(receipts);
 r.use(sales);
 
 export default r;

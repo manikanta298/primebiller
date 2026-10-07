@@ -136,7 +136,7 @@ r.get("/receipts/list", async (req, res) => {
   `, params);
 
   const [adv] = await q("SELECT COALESCE(SUM(unadjusted),0) value,COUNT(*) n FROM receipts WHERE org_id=? AND unadjusted>0", [ORG]);
-  const [month] = await q("SELECT COALESCE(SUM(amount),0) value,COUNT(*) n FROM receipts WHERE org_id=? AND receipt_date>=DATE_FORMAT(CURDATE(),'%Y-%m-01')", [ORG]);
+  const [month] = await q("SELECT COALESCE(SUM(amount),0) value,COUNT(*) n FROM receipts WHERE org_id=? AND status='POSTED' AND receipt_date>=DATE_FORMAT(CURDATE(),'%Y-%m-01')", [ORG]);
   const [overdue] = await q("SELECT COALESCE(SUM(balance_due),0) value,COUNT(*) n FROM invoices WHERE org_id=? AND balance_due>0 AND due_date<CURDATE()", [ORG]);
   const [cheques] = await q("SELECT COALESCE(SUM(amount),0) value,COUNT(*) n FROM receipts WHERE org_id=? AND mode='Cheque' AND doc_no='RCT/25-26/00079'", [ORG]);
   const [counts] = await q("SELECT 'Receipts' label,COUNT(*) n FROM receipts WHERE org_id=? UNION ALL SELECT 'Advances',COUNT(*) FROM receipts WHERE org_id=? AND unadjusted>0", [ORG, ORG]);
@@ -509,7 +509,7 @@ r.patch("/warehouses/:id", async (req, res) => {
 r.get("/reports", async (req, res) => {
   const month = String(req.query.month || "").trim();
   const monthPrefix = /^\\d{4}-\\d{2}$/.test(month) ? month : new Date().toISOString().slice(0,7);
-  const [sales] = await q("SELECT COALESCE(SUM(taxable),0) taxable,COALESCE(SUM(cgst+sgst+igst),0) gst FROM invoices WHERE org_id=? AND DATE_FORMAT(invoice_date,'%Y-%m')=?", [ORG,monthPrefix]);
+  const [sales] = await q("SELECT COALESCE(SUM(taxable),0) taxable,COALESCE(SUM(cgst+sgst+igst),0) gst FROM invoices WHERE org_id=? AND status<>'CANCELLED' AND DATE_FORMAT(invoice_date,'%Y-%m')=?", [ORG,monthPrefix]);
   const [receivables] = await q("SELECT COALESCE(SUM(balance_due),0) value,COUNT(*) n FROM invoices WHERE org_id=? AND balance_due>0", [ORG]);
   const [gstr] = await q("SELECT COUNT(*) n FROM invoices WHERE org_id=? AND DATE_FORMAT(invoice_date,'%Y-%m')=? AND balance_due>0", [ORG,monthPrefix]);
   const rows = await q(`
