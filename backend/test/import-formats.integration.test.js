@@ -112,6 +112,14 @@ test('bulk import formats: xlsx, json, google sheets', { skip: !process.env.DATA
     assert.match(none.body.error, /No data rows found/);
   });
 
+  await t.test('maps common warehouse and party Excel headers to the canonical import contract', async () => {
+    const { canonicalHeader } = await import('../importFormats.js');
+    assert.equal(canonicalHeader('WAREHOUSES', 'Location'), 'notes');
+    assert.equal(canonicalHeader('WAREHOUSES', 'Capacity'), 'max_stock');
+    assert.equal(canonicalHeader('PARTIES', 'Contact'), 'mobile');
+    assert.equal(canonicalHeader('PARTIES', 'Type'), 'party_type');
+  });
+
   await t.test('imports from a shared Google Sheet link', async () => {
     const bad = await request(app).post('/imports/from-sheet').send({ type: 'WAREHOUSES', url: 'https://example.com/spreadsheets/d/abc' });
     assert.equal(bad.status, 422);
