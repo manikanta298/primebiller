@@ -60,9 +60,9 @@ export const normalizeHeader = (h) =>
   String(h ?? "").replace(/[*()%]/g, "").trim().toLowerCase().replace(/[\s\-/.]+/g, "_").replace(/^_+|_+$/g, "");
 
 const ALIASES = {
-  ITEMS: { item_code: "sku", code: "sku", item_name: "name", product_name: "name", hsn_code: "hsn", hsn_sac: "hsn", gst: "gst_rate", gst_percent: "gst_rate", uom: "base_uom", unit: "base_uom", batch: "batch_tracked", batch_tracking: "batch_tracked" },
-  WAREHOUSES: { warehouse_name: "name", warehouse: "name", godown_name: "name", godown: "name", description: "notes", remarks: "notes", location: "notes", address: "notes", uom: "default_uom", reorder: "default_reorder", reorder_point: "default_reorder", reorder_level: "default_reorder", capacity: "max_stock", warehouse_capacity: "max_stock", storage_capacity: "max_stock", maximum_stock: "max_stock", allow_negative_stock: "allow_negative" },
-  PARTIES: { party_name: "name", customer_name: "name", supplier_name: "name", type: "party_type", party_type_name: "party_type", gst_number: "gstin", gst_no: "gstin", phone: "mobile", contact: "mobile", contact_number: "mobile", mobile_no: "mobile", mobile_number: "mobile", credit: "credit_limit", payment_terms: "terms" },
+  ITEMS: { item_code: "sku", code: "sku", item_name: "name", product_name: "name", hsn_code: "hsn", hsn_sac: "hsn", hsn_sac_code: "hsn", gst: "gst_rate", gst_percent: "gst_rate", uom: "base_uom", unit: "base_uom", unit_of_measure: "base_uom", base_unit: "base_uom", batch: "batch_tracked", batch_tracking: "batch_tracked" },
+  WAREHOUSES: { warehouse_name: "name", warehouse: "name", godown_name: "name", godown: "name", description: "notes", remarks: "notes", location: "notes", address: "notes", default_unit: "default_uom", min_stock: "default_reorder", max_qty: "max_stock", uom: "default_uom", reorder: "default_reorder", reorder_point: "default_reorder", reorder_level: "default_reorder", capacity: "max_stock", warehouse_capacity: "max_stock", storage_capacity: "max_stock", maximum_stock: "max_stock", allow_negative_stock: "allow_negative" },
+  PARTIES: { party_name: "name", customer_name: "name", supplier_name: "name", type: "party_type", party_type_name: "party_type", gst_number: "gstin", gst_no: "gstin", gstin_uin: "gstin", gst: "gstin", whatsapp: "mobile", phone: "mobile", contact: "mobile", contact_number: "mobile", mobile_no: "mobile", mobile_number: "mobile", credit: "credit_limit", payment_terms: "terms" },
 };
 export const canonicalHeader = (type, h) => {
   const n = normalizeHeader(h);
@@ -90,11 +90,20 @@ export async function rowsFromXlsx(buffer, { type, columns = [] } = {}) {
   if (!sheets.length) throw new Error("The workbook has no data sheet");
   const wanted = new Set(columns);
 
-  // Choose the sheet whose header row (within the first 15 rows) matches the most expected columns.
-  let best = null;
+  // Read every data sheet. A workbook that splits one list across several tabs must not lose rows,
+  // so all sheets whose header matches the expected columns are merged (the best-scoring header wins).
+  const scored = [];
   for (const sheet of sheets) {
     const rows = [];
-    sheet.eachRow({ includeEmpty: false }, (row) => rows.push(row.values.slice(1).map(cellText)));
+    sheet.eachRow({ includeEmpty: false }, (row) => {
+      const out = [];
+      row.eachCell({ includeEmpty: true }, (cell, i) => {
+        const v = cell.value;
+        // 18% typed into Excel is stored as 0.18; hand the importer 18.
+        out[i - 1] = typeof v === "number" && /%/.test(cell.numFmt || "") ? String(+(v * 100).toFixed(4)) : cellText(v);
+      });
+      rows.push(Array.from(out, (c) => c ?? ""));
+    });
     const nonEmpty = rows.filter((r) => r.some((c) => String(c).trim() !== ""));
     let headerAt = 0, score = 0;
     nonEmpty.slice(0, 15).forEach((r, i) => {
@@ -102,9 +111,12 @@ export async function rowsFromXlsx(buffer, { type, columns = [] } = {}) {
       if (hits > score) { score = hits; headerAt = i; }
     });
     const preferred = sheet.name.toLowerCase() === "data" ? 0.5 : 0;
-    if (!best || score + preferred > best.score) best = { rows: nonEmpty, headerAt, score: score + preferred };
+    scored.push({ rows: nonEmpty, headerAt, score, rank: score + preferred });
   }
-  return rowsToObjects(best.rows.slice(best.headerAt), type);
+  const top = Math.max(...scored.map((x) => x.rank));
+  const picked = scored.filter((x) => x.score > 0 && x.rank >= top - 1);
+  if (!picked.length) return rowsToObjects(scored.sort((a, b) => b.rank - a.rank)[0].rows, type);
+  return picked.flatMap((x) => rowsToObjects(x.rows.slice(x.headerAt), type));
 }
 
 function rowsToObjects(rows, type) {

@@ -2,7 +2,7 @@ import { Router } from "express";
 import express from "express";
 import { pool, q } from "../db.js";
 import { ORG } from "../org.js";
-import { parseCsv } from "../importer.js";
+import { parseCsv, suggestUom } from "../importer.js";
 import { XLSX_MIME, MAX_IMPORT_ROWS, canonicalHeader, rowsFromXlsx, rowsFromJson, googleSheetExportUrl, buildTemplate, SAMPLE_ROWS } from "../importFormats.js";
 
 const r = Router();
@@ -17,7 +17,20 @@ const normalizeType = (value) => String(value || "").trim().toUpperCase();
 const asBool = (value) => ["1","true","yes","y"].includes(String(value || "").trim().toLowerCase()) ? 1 : 0;
 const required = (p, key) => String(p[key] ?? "").trim();
 const validNumber = (v) => /^\d+(\.\d+)?$/.test(String(v ?? "").trim());
-export const cleanRow = (p, type) => Object.fromEntries(Object.entries(p).map(([k,v]) => [canonicalHeader(type, k), v === true ? "true" : v === false ? "false" : String(v ?? "").trim()]));
+const UOM_SYNONYMS = { PCS: "NOS", PC: "NOS", PIECE: "NOS", PIECES: "NOS", NO: "NOS", UNIT: "NOS", UNITS: "NOS", EA: "NOS", KGS: "KG", KILOGRAM: "KG", KILOGRAMS: "KG", TON: "MT", TONS: "MT", TONNE: "MT", TONNES: "MT", BAGS: "BAG", SHEETS: "SHEET", TRUCKS: "TRUCK" };
+const tidy = {
+  base_uom: (v) => { const u = v.toUpperCase(); return UOM_SYNONYMS[u] || suggestUom(u) || v; },
+  default_uom: (v) => { const u = v.toUpperCase(); return UOM_SYNONYMS[u] || suggestUom(u) || v; },
+  hsn: (v) => (/^\d+$/.test(v) && [3, 5, 7].includes(v.length) ? "0" + v : v),          // Excel drops the leading zero (0902 -> 902)
+  gst_rate: (v) => v.replace(/%$/, "").trim(),                                          // "18%" -> "18"
+  mobile: (v) => { const d = v.replace(/[\s\-()]/g, ""); const m = d.match(/^(?:\+?91|0)(\d{10})$/); return m ? m[1] : d; }, // "+91 98765-43210" -> 9876543210
+  gstin: (v) => v.replace(/\s/g, "").toUpperCase(),
+};
+export const cleanRow = (p, type) => Object.fromEntries(Object.entries(p).map(([k,v]) => {
+  const key = canonicalHeader(type, k);
+  const val = v === true ? "true" : v === false ? "false" : String(v ?? "").trim();
+  return [key, tidy[key] ? tidy[key](val) : val];
+}));
 const normalizeRows = (type, data) => data.map((p) => cleanRow(p, type));
 
 const validateHeaders = (type, data) => {
