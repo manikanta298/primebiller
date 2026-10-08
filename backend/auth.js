@@ -297,7 +297,7 @@ async function createSession(userId, rememberMe = true) {
 export async function signIn(req, res, { email, password, rememberMe = true }) {
   const normalizedEmail = normalizeEmail(email);
 
-  if (!normalizedEmail || normalizedEmail.length > 190 || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(normalizedEmail)) {
+  if (!normalizedEmail || normalizedEmail.length > 190 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
     return { ok: false, error: "Invalid email or password." };
   }
 
