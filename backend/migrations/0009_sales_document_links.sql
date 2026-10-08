@@ -1,0 +1,7 @@
+-- Cancelled challans, invoice status + order link, receipt status + payment reference.
+ALTER TABLE challans MODIFY COLUMN status ENUM('DRAFT','IN_TRANSIT','DELIVERED','INVOICED','CANCELLED') NOT NULL DEFAULT 'DRAFT';
+ALTER TABLE invoices ADD COLUMN so_id INT NULL;
+ALTER TABLE invoices ADD COLUMN status ENUM('ISSUED','PARTIALLY_PAID','PAID','CANCELLED') NOT NULL DEFAULT 'ISSUED';
+ALTER TABLE receipts ADD COLUMN status ENUM('POSTED','CANCELLED') NOT NULL DEFAULT 'POSTED';
+ALTER TABLE receipts ADD COLUMN reference VARCHAR(60) NULL;
+UPDATE invoices SET status=CASE WHEN balance_due<=0 THEN 'PAID' WHEN balance_due<total THEN 'PARTIALLY_PAID' ELSE 'ISSUED' END;

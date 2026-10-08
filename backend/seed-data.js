@@ -6,7 +6,7 @@ const c = await pool.getConnection();
 const ex = (s, p = []) => c.query(s, p).then((r) => r[0]);
 const ins = async (s, p) => (await ex(s, p)).insertId;
 
-for (const t of ["import_rows","import_jobs","stock_alerts","receipt_allocations","receipts","invoices","eway_bills","challan_events","challan_lines","challans","sales_order_lines","sales_orders","doc_counters","parties","stock_ledger","batches","item_warehouse_settings","item_uoms","items","uoms","warehouses","organizations"])
+for (const t of ["import_rows","import_jobs","so_reservations","stock_alerts","receipt_allocations","receipts","invoices","eway_bills","challan_events","challan_lines","challans","sales_order_lines","sales_orders","doc_counters","parties","stock_ledger","batches","item_warehouse_settings","item_uoms","items","uoms","warehouses","organizations"])
   await ex(`DELETE FROM ${t}`);
 
 const org = await ins("INSERT INTO organizations (name,gstin,state_code,address) VALUES (?,?,?,?)",
@@ -127,6 +127,7 @@ for (let i = 0; i < 34; i++) {
   const bal = Math.floor(rest / (34 - i)); rest -= bal;
   await inv(String(100 + i).padStart(5,"0"), P.RH, "S", "2026-09-05", "2026-10-25", bal, bal);
 }
+await ex("UPDATE invoices SET status=CASE WHEN balance_due<=0 THEN 'PAID' WHEN balance_due<total THEN 'PARTIALLY_PAID' ELSE 'ISSUED' END");
 // Challans from the mock
 const dc = (no,p,w,d,st,total) => ex(
   "INSERT INTO challans (org_id,doc_no,party_id,warehouse_id,challan_date,status,taxable,tax,total,pod_signed) VALUES (?,?,?,?,?,?,?,?,?,?)",

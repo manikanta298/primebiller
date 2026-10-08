@@ -1,3 +1,4 @@
+import { peekDocNo } from "../services/sales/docNo.js";
 import { Router } from "express";
 import express from "express";
 import { pool, q } from "../db.js";
@@ -127,10 +128,10 @@ const buildPreview = async () => {
   const iTaxable = round(iTax.reduce((a, l) => a + l.taxable, 0)), iTotalTax = round(iTax.reduce((a, l) => a + l.tax, 0));
   const [party] = await q("SELECT * FROM parties WHERE id=?", [dc.party_id]);
   const [adv] = await q("SELECT doc_no,receipt_date,unadjusted FROM receipts WHERE party_id=? AND unadjusted>0 ORDER BY receipt_date LIMIT 1", [dc.party_id]);
-  const [{ last_no }] = await q("SELECT last_no FROM doc_counters WHERE org_id=? AND doc_type='INV' AND fy='25-26'", [ORG]);
+  const invNo = await peekDocNo("INV", "INV");
   const invTotal = round(iTaxable + iTotalTax), applied = adv ? Math.min(adv.unadjusted, invTotal) : 0;
   return { thermal: t, org,
-    invoice: { no: `INV/25-26/${String(last_no + 1).padStart(5, "0")}`, date: new Date().toISOString().slice(0, 10), party, lines: iTax, challans: ids.length, taxable: iTaxable, tax: iTotalTax, total: invTotal,
+    invoice: { no: invNo, date: new Date().toISOString().slice(0, 10), party, lines: iTax, challans: ids.length, taxable: iTaxable, tax: iTotalTax, total: invTotal,
       words: inrWords(invTotal), advance: adv ? { ...adv, applied } : null, balance: round(invTotal - applied) } };
 };
 r.get("/print/preview", async (_q, res) => res.json(await buildPreview()));

@@ -106,6 +106,7 @@ CREATE TABLE sales_orders (
   status ENUM('DRAFT','CONFIRMED','PARTIAL','DELIVERED','INVOICED','CANCELLED') NOT NULL DEFAULT 'DRAFT',
   taxable DECIMAL(14,2) NOT NULL DEFAULT 0, tax DECIMAL(14,2) NOT NULL DEFAULT 0,
   total DECIMAL(14,2) NOT NULL DEFAULT 0, autosaved_at DATETIME,
+  reference VARCHAR(40) NULL, notes VARCHAR(255) NULL,
   FOREIGN KEY (party_id) REFERENCES parties(id)
 );
 
@@ -117,10 +118,16 @@ CREATE TABLE sales_order_lines (
   FOREIGN KEY (so_id) REFERENCES sales_orders(id) ON DELETE CASCADE, FOREIGN KEY (item_id) REFERENCES items(id)
 );
 
+CREATE TABLE so_reservations (
+  id INT AUTO_INCREMENT PRIMARY KEY, so_line_id INT NOT NULL, batch_id INT NOT NULL, qty DECIMAL(14,3) NOT NULL,
+  UNIQUE KEY uq_so_res (so_line_id, batch_id),
+  FOREIGN KEY (so_line_id) REFERENCES sales_order_lines(id) ON DELETE CASCADE, FOREIGN KEY (batch_id) REFERENCES batches(id)
+);
+
 CREATE TABLE challans (
   id INT AUTO_INCREMENT PRIMARY KEY, org_id INT NOT NULL, doc_no VARCHAR(30) NOT NULL UNIQUE,
   so_id INT, party_id INT NOT NULL, warehouse_id INT NOT NULL, challan_date DATETIME NOT NULL,
-  status ENUM('DRAFT','IN_TRANSIT','DELIVERED','INVOICED') NOT NULL DEFAULT 'DRAFT',
+  status ENUM('DRAFT','IN_TRANSIT','DELIVERED','INVOICED','CANCELLED') NOT NULL DEFAULT 'DRAFT',
   vehicle_no VARCHAR(15), driver VARCHAR(80), driver_mobile VARCHAR(15), transporter VARCHAR(100),
   distance_km INT, taxable DECIMAL(14,2) NOT NULL DEFAULT 0, tax DECIMAL(14,2) NOT NULL DEFAULT 0,
   total DECIMAL(14,2) NOT NULL DEFAULT 0, pod_signed TINYINT(1) NOT NULL DEFAULT 0, invoice_id INT,
@@ -154,6 +161,7 @@ CREATE TABLE invoices (
   taxable DECIMAL(14,2) NOT NULL, cgst DECIMAL(14,2) NOT NULL, sgst DECIMAL(14,2) NOT NULL,
   igst DECIMAL(14,2) NOT NULL DEFAULT 0, total DECIMAL(14,2) NOT NULL,
   advance_adjusted DECIMAL(14,2) NOT NULL DEFAULT 0, balance_due DECIMAL(14,2) NOT NULL,
+  so_id INT NULL, status ENUM('ISSUED','PARTIALLY_PAID','PAID','CANCELLED') NOT NULL DEFAULT 'ISSUED',
   FOREIGN KEY (party_id) REFERENCES parties(id)
 );
 
@@ -161,6 +169,7 @@ CREATE TABLE receipts (
   id INT AUTO_INCREMENT PRIMARY KEY, org_id INT NOT NULL, doc_no VARCHAR(30) NOT NULL UNIQUE,
   party_id INT NOT NULL, receipt_date DATE NOT NULL, mode ENUM('NEFT','Cheque','Cash','UPI') NOT NULL,
   amount DECIMAL(14,2) NOT NULL, unadjusted DECIMAL(14,2) NOT NULL,
+  status ENUM('POSTED','CANCELLED') NOT NULL DEFAULT 'POSTED', reference VARCHAR(60) NULL,
   FOREIGN KEY (party_id) REFERENCES parties(id)
 );
 
