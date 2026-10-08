@@ -1,15 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { api, inr, lakh, qty } from '../api';
+import { AdjustmentModal } from './StockForms';
 import { KpiStrip, FilterBar, Tag, dateShort } from './ScreenKit';
 
 export default function Adjustments(){
-  const [data,setData]=useState(null),[status,setStatus]=useState(''),[sel,setSel]=useState(null),[busy,setBusy]=useState(false),[msg,setMsg]=useState('');
+  const [data,setData]=useState(null),[status,setStatus]=useState(''),[sel,setSel]=useState(null),[busy,setBusy]=useState(false),[msg,setMsg]=useState(''),[form,setForm]=useState(false);
   const load=()=>api('/adjustments?status='+status).then(d=>{setData(d);if(sel){const next=(d.rows||[]).find(x=>x.id===sel.id);setSel(next||null)}}).catch(()=>setData({rows:[],summary:{}}));
   useEffect(()=>{load()},[status]);
   const act=async(action)=>{if(!sel)return;setBusy(true);try{await api('/adjustments/'+sel.id+'/'+action,{method:'POST'});setMsg(action==='approve'?'Approved & posted':'Rejected');await load()}catch(e){setMsg(e.message)}finally{setBusy(false)}};
   const s=data?.summary||{};
   return <>
-    <div className="gd-h"><div><h1>Stock adjustments</h1><p>Controlled corrections for counts, damage, expiry and opening balance exceptions</p></div><div className="gd-actions"><button className="gd-btn">Export CSV</button><button className="gd-btn pri">New adjustment</button></div></div>
+    {form&&<AdjustmentModal onClose={()=>setForm(false)} onDone={m=>{setForm(false);setMsg(m);load()}}/>}
+    <div className="gd-h"><div><h1>Stock adjustments</h1><p>Controlled corrections for counts, damage, expiry and opening balance exceptions</p></div><div className="gd-actions"><button className="gd-btn">Export CSV</button><button className="gd-btn pri" onClick={()=>setForm(true)}>New adjustment</button></div></div>
     <KpiStrip items={[
       {label:'PENDING APPROVAL',value:s.pending?.n||0,sub:'₹'+inr(s.pending?.value||0,0)+' value at risk',color:'var(--org)'},
       {label:'POSTED THIS MONTH',value:s.month?.n||0,sub:'increases + decreases'},
