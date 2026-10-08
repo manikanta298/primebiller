@@ -12,7 +12,9 @@ test('single-entry master forms', { skip: !process.env.DATABASE_URL }, async (t)
   app.use(express.json());
   app.use(masters);
   t.after(async () => {
+    await pool.query('DELETE FROM item_warehouse_settings WHERE item_id IN (SELECT id FROM items WHERE org_id=? AND sku LIKE ?)', [ORG, `${tag}%`]);
     await pool.query('DELETE FROM items WHERE org_id=? AND sku LIKE ?', [ORG, `${tag}%`]);
+    await pool.query('DELETE FROM item_warehouse_settings WHERE warehouse_id IN (SELECT id FROM warehouses WHERE org_id=? AND name LIKE ?)', [ORG, `${tag}%`]);
     await pool.query('DELETE FROM warehouses WHERE org_id=? AND name LIKE ?', [ORG, `${tag}%`]);
     await pool.query('DELETE FROM parties WHERE org_id=? AND name LIKE ?', [ORG, `${tag}%`]);
     await pool.end();
