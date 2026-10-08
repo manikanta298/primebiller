@@ -296,14 +296,12 @@ async function createSession(userId, rememberMe = true) {
 
 export async function signIn(req, res, { email, password, rememberMe = true }) {
   const normalizedEmail = normalizeEmail(email);
-  const configuredEmail = demoEmail();
 
-  if (!configuredEmail || normalizedEmail !== configuredEmail) {
-    console.warn(`[auth] Rejected sign-in for non-demo email: ${normalizedEmail || "missing"}`);
+  if (!normalizedEmail || normalizedEmail.length > 190 || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(normalizedEmail)) {
     return { ok: false, error: "Invalid email or password." };
   }
 
-  const user = await findUserByEmail(configuredEmail);
+  const user = await findUserByEmail(normalizedEmail);
   if (!user || !(await verifyPassword(password, user.password_hash)) || !user.email_verified) {
     return { ok: false, error: "Invalid email or password." };
   }
