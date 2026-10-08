@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { pool, q } from "../db.js";
 import { ORG } from "../org.js";
+import { nextDocNo } from "../services/sales/docNo.js";
 
 const r = Router();
 const round = (n) => Math.round((Number(n || 0) + Number.EPSILON) * 100) / 100;
@@ -261,29 +262,71 @@ r.get("/transfers", async (req, res) => {
   res.json({ rows, summary: { draft, transit, completed, pendingReceipt }, selected });
 });
 
+const r3 = (n) => Math.round((Number(n) + Number.EPSILON) * 1000) / 1000;
+const httpErr = (msg, code = 422) => Object.assign(new Error(msg), { code });
+const failWith = (res, e) => res.status(Number.isInteger(e.code) ? e.code : 500).json({ error: e.message });
+
+// Sends a draft transfer: takes the stock out of the source batches (ledger TRANSFER_OUT) and marks it in transit.
+// Free stock only (on hand minus reserved for sales orders); transfers never go negative.
+const issueTransfer = async (c, t) => {
+  const [lines] = await c.query("SELECT * FROM stock_transfer_lines WHERE transfer_id=? ORDER BY id", [t.id]);
+  if (!lines.length) throw httpErr("Add at least one line before sending");
+  for (const l of lines) {
+    const [[b]] = await c.query("SELECT id,item_id,warehouse_id,qty_on_hand,qty_reserved FROM batches WHERE id=? FOR UPDATE", [l.batch_id]);
+    if (!b || b.item_id !== l.item_id || b.warehouse_id !== t.from_warehouse_id) throw httpErr("A line's batch does not belong to the source godown");
+    if (r3(b.qty_on_hand - b.qty_reserved) + 0.0005 < l.qty) throw httpErr(`Only ${r3(b.qty_on_hand - b.qty_reserved)} free in a selected batch`, 409);
+    await c.query("UPDATE batches SET qty_on_hand=qty_on_hand-? WHERE id=?", [l.qty, b.id]);
+    await c.query("INSERT INTO stock_ledger (org_id,warehouse_id,item_id,batch_id,doc_no,movement,qty,value,reason) VALUES (?,?,?,?,?,'TRANSFER_OUT',?,?,?)",
+      [ORG, t.from_warehouse_id, l.item_id, b.id, t.doc_no, -l.qty, round(l.qty * l.rate), "Transfer issue"]);
+  }
+  await c.query("UPDATE stock_transfers SET status='IN_TRANSIT',pod_pending=1 WHERE id=?", [t.id]);
+};
+
+// Create a transfer with its lines. By default it is sent immediately (stock leaves the source godown);
+// pass issue:false to keep it as a draft and send it later with POST /transfers/:id/issue.
 r.post("/transfers", async (req, res) => {
-  const { fromWarehouseId, toWarehouseId } = req.body || {};
+  const { fromWarehouseId, toWarehouseId, lines = [], issue = true } = req.body || {};
   if (!fromWarehouseId || !toWarehouseId || Number(fromWarehouseId) === Number(toWarehouseId)) {
     return res.status(422).json({ error: "Source and destination godowns must be different" });
   }
   const c = await pool.getConnection();
   try {
+    const merged = new Map();
+    for (const l of lines) {
+      const qty = Number(l.qty);
+      if (!l.itemId || !l.batchId || !Number.isFinite(qty) || qty <= 0) throw httpErr("Each line needs an item, a batch and a quantity above zero");
+      merged.set(`${l.itemId}:${l.batchId}`, { itemId: Number(l.itemId), batchId: Number(l.batchId), qty: r3((merged.get(`${l.itemId}:${l.batchId}`)?.qty || 0) + qty) });
+    }
+    if (!merged.size) throw httpErr("Add at least one line");
     await c.beginTransaction();
-    const [warehouses] = await c.query(
-      "SELECT id FROM warehouses WHERE id IN (?,?) AND org_id=? FOR UPDATE",
-      [fromWarehouseId,toWarehouseId,ORG],
-    );
-    if (warehouses.length !== 2) throw Object.assign(new Error("Source or destination godown is invalid"), { code: 422 });
-    const [[mx]] = await c.query("SELECT COALESCE(MAX(CAST(SUBSTRING_INDEX(doc_no,'/',-1) AS UNSIGNED)),0) n FROM stock_transfers WHERE org_id=? AND doc_no LIKE 'XFR/%'", [ORG]);
-    const no = `XFR/25-26/${String(mx.n + 1).padStart(5, "0")}`;
-    const [ins] = await c.query("INSERT INTO stock_transfers (org_id,doc_no,from_warehouse_id,to_warehouse_id,transfer_date,status,value) VALUES (?,?,?,?,NOW(),'DRAFT',0)",
-      [ORG, no, fromWarehouseId, toWarehouseId]);
+    const [whs] = await c.query("SELECT id FROM warehouses WHERE id IN (?,?) AND org_id=? AND active=1 FOR UPDATE", [fromWarehouseId, toWarehouseId, ORG]);
+    if (whs.length !== 2) throw httpErr("Source or destination godown is invalid");
+    const no = await nextDocNo(c, "XFR", "XFR");
+    const [ins] = await c.query("INSERT INTO stock_transfers (org_id,doc_no,from_warehouse_id,to_warehouse_id,transfer_date,status,value) VALUES (?,?,?,?,NOW(),'DRAFT',0)", [ORG, no, fromWarehouseId, toWarehouseId]);
+    let value = 0;
+    for (const l of merged.values()) {
+      const [[b]] = await c.query("SELECT unit_cost FROM batches WHERE id=? AND item_id=? AND warehouse_id=?", [l.batchId, l.itemId, fromWarehouseId]);
+      if (!b) throw httpErr("A selected batch does not belong to the source godown");
+      value += l.qty * b.unit_cost;
+      await c.query("INSERT INTO stock_transfer_lines (transfer_id,item_id,batch_id,qty,rate) VALUES (?,?,?,?,?)", [ins.insertId, l.itemId, l.batchId, l.qty, b.unit_cost]);
+    }
+    await c.query("UPDATE stock_transfers SET value=? WHERE id=?", [round(value), ins.insertId]);
+    if (issue) await issueTransfer(c, { id: ins.insertId, doc_no: no, from_warehouse_id: Number(fromWarehouseId) });
     await c.commit();
-    res.status(201).json({ id: ins.insertId, docNo: no });
-  } catch (e) {
-    await c.rollback();
-    res.status(500).json({ error: e.message });
-  } finally { c.release(); }
+    res.status(201).json({ id: ins.insertId, docNo: no, status: issue ? "IN_TRANSIT" : "DRAFT" });
+  } catch (e) { await c.rollback(); failWith(res, e); } finally { c.release(); }
+});
+
+r.post("/transfers/:id/issue", async (req, res) => {
+  const c = await pool.getConnection();
+  try {
+    await c.beginTransaction();
+    const [[t]] = await c.query("SELECT * FROM stock_transfers WHERE id=? AND org_id=? FOR UPDATE", [req.params.id, ORG]);
+    if (!t) throw httpErr("Transfer not found", 404);
+    if (t.status !== "DRAFT") throw httpErr("Only a draft transfer can be sent", 409);
+    await issueTransfer(c, t);
+    await c.commit(); res.json({ ok: true, status: "IN_TRANSIT" });
+  } catch (e) { await c.rollback(); failWith(res, e); } finally { c.release(); }
 });
 
 r.post("/transfers/:id/receive", async (req, res) => {
@@ -370,13 +413,14 @@ const postAdjustment = async (id, user, action) => {
       return { ok:true,status:"REJECTED" };
     }
     const [[b]] = await c.query(
-      "SELECT b.id,b.qty_on_hand,b.item_id,b.warehouse_id FROM batches b JOIN warehouses w ON w.id=b.warehouse_id WHERE b.id=? AND b.item_id=? AND b.warehouse_id=? AND w.org_id=? FOR UPDATE",
+      "SELECT b.id,b.qty_on_hand,b.qty_reserved,b.item_id,b.warehouse_id FROM batches b JOIN warehouses w ON w.id=b.warehouse_id WHERE b.id=? AND b.item_id=? AND b.warehouse_id=? AND w.org_id=? FOR UPDATE",
       [a.batch_id,a.item_id,a.warehouse_id,ORG],
     );
     if (!b) throw Object.assign(new Error("Adjustment batch does not belong to the requested item and godown"), { code: 422 });
     const next = Number(b.qty_on_hand) + Number(a.qty);
     const [[w]] = await c.query("SELECT allow_negative FROM warehouses WHERE id=?", [a.warehouse_id]);
     if (next < 0 && !w.allow_negative) throw Object.assign(new Error("Adjustment would create negative stock"), { code: 409 });
+    if (a.qty < 0 && next + 0.0005 < b.qty_reserved) throw Object.assign(new Error("Adjustment would take stock that is reserved for sales orders"), { code: 409 });
     await c.query("UPDATE batches SET qty_on_hand=? WHERE id=?", [next, b.id]);
     await c.query("INSERT INTO stock_ledger (org_id,warehouse_id,item_id,batch_id,doc_no,movement,qty,value,reason) VALUES (?,?,?,?,?,?,?,?,?)",
       [ORG,a.warehouse_id,a.item_id,a.batch_id,a.doc_no,a.qty>0?"ADJ_UP":"ADJ_DOWN",a.qty,Math.abs(a.value),a.reason]);
@@ -408,10 +452,15 @@ r.post("/adjustments", async (req, res) => {
     [batchId,itemId,warehouseId,ORG],
   );
   if (!batch) return res.status(422).json({ error:"Batch does not belong to the requested item and godown" });
-  const [mx] = await q("SELECT COALESCE(MAX(CAST(SUBSTRING_INDEX(doc_no,'/',-1) AS UNSIGNED)),0) n FROM stock_adjustments WHERE org_id=? AND doc_no LIKE 'ADJ/%'", [ORG]);
-  const no = `ADJ/25-26/${String(mx[0].n + 1).padStart(5,'0')}`;
-  const [ins] = await q("INSERT INTO stock_adjustments (org_id,doc_no,warehouse_id,item_id,batch_id,adjustment_date,reason,qty,value,status,submitted_by,submitted_at) VALUES (?,?,?,?,?,NOW(),?,?,?,?,?,NOW())",
-    [ORG,no,warehouseId,itemId,batchId,reason,Number(qty),Number(value||0),"PENDING",req.user?.name || "Owner"]);
+  const c = await pool.getConnection();
+  let ins, no;
+  try {
+    await c.beginTransaction();
+    no = await nextDocNo(c, "ADJ", "ADJ");
+    [ins] = await c.query("INSERT INTO stock_adjustments (org_id,doc_no,warehouse_id,item_id,batch_id,adjustment_date,reason,qty,value,status,submitted_by,submitted_at) VALUES (?,?,?,?,?,NOW(),?,?,?,?,?,NOW())",
+      [ORG,no,warehouseId,itemId,batchId,String(reason).slice(0,100),Number(qty),Number(value||0),"PENDING",req.user?.name || "Owner"]);
+    await c.commit();
+  } catch (e) { await c.rollback(); return failWith(res, e); } finally { c.release(); }
   res.status(201).json({ id:ins.insertId,docNo:no });
 });
 

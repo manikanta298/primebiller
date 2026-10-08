@@ -1,17 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { api, inr } from '../api';
+import { TransferModal } from './StockForms';
 import { KpiStrip, FilterBar, Tag, dateShort, Money } from './ScreenKit';
 
 const tones={DRAFT:'amb',IN_TRANSIT:'org',COMPLETED:'grn',CANCELLED:'red'};
 export default function Transfers(){
-  const [data,setData]=useState(null),[status,setStatus]=useState(''),[selected,setSelected]=useState(null),[busy,setBusy]=useState(false),[msg,setMsg]=useState('');
+  const [data,setData]=useState(null),[status,setStatus]=useState(''),[selected,setSelected]=useState(null),[busy,setBusy]=useState(false),[msg,setMsg]=useState(''),[form,setForm]=useState(false);
   const load=()=>api('/transfers?status='+status+'&id='+(selected?.id||'')).then(d=>{setData(d);if(selected) setSelected(d.selected)}).catch(()=>setData({rows:[],summary:{},selected:null}));
   useEffect(()=>{load()},[status]);
   const pick=async id=>{const d=await api('/transfers?id='+id);setData(d);setSelected(d.selected)};
   const receive=async()=>{if(!selected)return;setBusy(true);try{await api('/transfers/'+selected.id+'/receive',{method:'POST'});setMsg('Destination receipt posted');await pick(selected.id)}catch(e){setMsg(e.message)}finally{setBusy(false)}};
   const s=data?.summary||{};
   return <>
-    <div className="gd-h"><div><h1>Stock transfers</h1><p>Move stock between godowns with an auditable issue and receipt trail</p></div><div className="gd-actions"><button className="gd-btn">Export CSV</button><button className="gd-btn pri">New transfer</button></div></div>
+    {form&&<TransferModal onClose={()=>setForm(false)} onDone={m=>{setForm(false);setMsg(m);load()}}/>}
+    <div className="gd-h"><div><h1>Stock transfers</h1><p>Move stock between godowns with an auditable issue and receipt trail</p></div><div className="gd-actions"><button className="gd-btn">Export CSV</button><button className="gd-btn pri" onClick={()=>setForm(true)}>New transfer</button></div></div>
     <KpiStrip items={[
       {label:'DRAFT',value:s.draft?.n||0,sub:'awaiting post'},
       {label:'IN TRANSIT',value:s.transit?.n||0,sub:'one with POD pending',color:'var(--org)'},

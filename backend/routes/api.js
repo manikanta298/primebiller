@@ -3,6 +3,7 @@ import { requireSession } from "../auth.js";
 import { q } from "../db.js";
 import sales from "./sales.js";
 import receipts from "./receipts.js";
+import stockActions from "./stockActions.js";
 import invoicing from "./invoicing.js";
 import fin from "./final.js";
 import pending from "./pending.js";
@@ -118,6 +119,7 @@ r.use(pending);
 r.use(fin);
 r.use(invoicing);
 r.use(receipts);
+r.use(stockActions);
 r.use(sales);
 
 export default r;

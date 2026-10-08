@@ -1,16 +1,22 @@
 import React, { useEffect, useState } from 'react';
+import { AdjustmentModal, TransferModal, MovementChooser } from './StockForms';
 import { api, inr, lakh, qty } from '../api';
 import { KpiStrip, FilterBar, Tag, dateTime } from './ScreenKit';
 
 const TYPES = { PURCHASE:['Purchase','grn'], DC_ISSUE:['DC issue','org'], TRANSFER_OUT:['Transfer out','teal'], TRANSFER_IN:['Transfer in','teal'], ADJ_UP:['Adjust up','grn'], ADJ_DOWN:['Adjust down','red'] };
 
 export default function StockLedger({ godown }) {
-  const [data,setData]=useState(null),[item,setItem]=useState(''),[type,setType]=useState(''),[period,setPeriod]=useState('TODAY');
+  const [data,setData]=useState(null),[item,setItem]=useState(''),[type,setType]=useState(''),[period,setPeriod]=useState('TODAY'),[form,setForm]=useState(null),[note,setNote]=useState('');
   const load=()=>api('/ledger?item='+encodeURIComponent(item)+'&type='+type+'&period='+period+'&godown='+godown).then(setData).catch(()=>setData({rows:[],summary:{},counts:[]}));
   useEffect(()=>{const t=setTimeout(load,120);return()=>clearTimeout(t)},[item,type,period,godown]);
   const d=data?.summary||{};
+  const done=m=>{setForm(null);setNote(m);load()};
   return <>
-    <div className="gd-h"><div><h1>Stock ledger</h1><p>Every posted stock movement, linked to document, batch, godown and valuation</p></div><div className="gd-actions"><button className="gd-btn">Export ledger</button><button className="gd-btn pri">New movement</button></div></div>
+    {form==='choose'&&<MovementChooser onClose={()=>setForm(null)} onPick={setForm}/>}
+    {form==='adjustment'&&<AdjustmentModal onClose={()=>setForm(null)} onDone={done}/>}
+    {form==='transfer'&&<TransferModal onClose={()=>setForm(null)} onDone={done}/>}
+    {note&&<div className="gd-note" role="status">{note}</div>}
+    <div className="gd-h"><div><h1>Stock ledger</h1><p>Every posted stock movement, linked to document, batch, godown and valuation</p></div><div className="gd-actions"><button className="gd-btn">Export ledger</button><button className="gd-btn pri" onClick={()=>setForm('choose')}>New movement</button></div></div>
     <KpiStrip items={[
       {label:'OPENING BALANCE',value:'₹'+lakh(d.opening?.value||0),sub:'weighted average value'},
       {label:'INWARDS TODAY',value:'+₹'+lakh(d.inwards?.value||0),sub:qty(d.inwards?.qty||0)+' qty purchase',color:'var(--teal)'},
