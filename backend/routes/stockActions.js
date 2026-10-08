@@ -14,7 +14,7 @@ r.get("/stock/batches", async (req, res) => {
   if (req.query.in_stock === "1") where.push("b.qty_on_hand>b.qty_reserved");
   res.json({ rows: await q(`SELECT b.id batch_id,b.item_id,i.name item,i.sku,b.batch_no,b.expiry_date,b.unit_cost,b.qty_on_hand,b.qty_reserved,
       b.qty_on_hand-b.qty_reserved free FROM batches b JOIN items i ON i.id=b.item_id JOIN warehouses w ON w.id=b.warehouse_id
-    WHERE ${where.join(" AND ")} ORDER BY i.name,b.mfg_date,b.id LIMIT 100`, params) });
+    WHERE ${where.join(" AND ")} AND w.active=1 ORDER BY i.name,b.mfg_date,b.id LIMIT 100`, params) });
 });
 
 export default r;

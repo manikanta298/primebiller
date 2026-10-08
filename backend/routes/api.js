@@ -6,7 +6,7 @@ import receipts from "./receipts.js";
 import stockActions from "./stockActions.js";
 import invoicing from "./invoicing.js";
 import fin from "./final.js";
-import pending from "./pending.js";
+import pending from "./pending.js";\nimport godownStock from "./godownStock.js";
 import typedImports from "./imports.js";
 import masters from "./masters.js";
 import admin from "./admin.js";
@@ -20,7 +20,11 @@ r.use(orgMiddleware);
 import { ORG, orgMiddleware } from "../org.js";
 const wid = (req) => (req.query.godown && req.query.godown !== "all" ? Number(req.query.godown) : null);
 
-r.get("/warehouses", async (_q, res) => res.json(await q("SELECT id,name,notes FROM warehouses WHERE org_id=?", [ORG])));
+r.get("/warehouses", async (req, res) => {
+  const includeInactive = String(req.query.include_inactive || "") === "1";
+  const where = includeInactive ? "" : " AND active=1";
+  res.json(await q(`SELECT id,name,notes,active FROM warehouses WHERE org_id=?${where} ORDER BY active DESC,name`, [ORG]));
+});
 r.get("/org", async (_q, res) => res.json((await q("SELECT id,name,gstin FROM organizations WHERE id=?", [ORG]))[0]));
 
 r.get("/dashboard", async (req, res) => {

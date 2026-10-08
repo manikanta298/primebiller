@@ -18,6 +18,7 @@ import Transfers from './pages/Transfers.jsx';
 import Adjustments from './pages/Adjustments.jsx';
 import Parties from './pages/Parties.jsx';
 import Warehouses from './pages/Warehouses.jsx';
+import GodownDashboard from './pages/GodownDashboard.jsx';
 import Reports from './pages/Reports.jsx';
 import Settings from './pages/Settings.jsx';
 
@@ -25,7 +26,7 @@ const NAV = [
   ['OVERVIEW', [['Dashboard', '/dashboard'], ['Find a document', '/find']]],
   ['SALES', [['Sales orders', '/sales-orders'], ['Delivery challans', '/challans'], ['Tax invoices', '/invoices'], ['Receipts & advances', '/receipts']]],
   ['INVENTORY', [['Stock ledger', '/ledger'], ['Alerts', '/alerts'], ['Transfers', '/transfers'], ['Adjustments', '/adjustments']]],
-  ['MASTERS', [['Items', '/items'], ['Parties', '/parties'], ['Warehouses', '/warehouses']]],
+  ['MASTERS', [['Items', '/items'], ['Parties', '/parties'], ['Warehouses', '/warehouses'], ['Godown dashboards', '/warehouses']]],
   ['OPERATIONS', [['Bulk import', '/import'], ['Reports & GSTR-1', '/reports'], ['Print profiles', '/print'], ['Settings', '/settings']]],
 ];
 
@@ -35,6 +36,7 @@ const resolvePage = (route) => {
   if (route.startsWith('/sales-orders/')) return SalesOrder;
   if (route.startsWith('/items/')) return ItemDetail;
   if (route.startsWith('/challans/transit')) return ChallanTransit;
+  if (route.startsWith('/warehouses/') && /\/warehouses\/\d+\/dashboard/.test(route)) return GodownDashboard;
   const path = '/' + (route.split('?')[0].split('/')[1] || 'dashboard');
   return {
     '/dashboard': Dashboard,
@@ -65,7 +67,7 @@ export default function Shell({ route, user, onSignOut }) {
 
   useEffect(() => {
     let alive = true;
-    Promise.all([api('/org'), api('/warehouses')]).then(([o, g]) => {
+    Promise.all([api('/org'), api('/warehouses?include_inactive=1')]).then(([o, g]) => {
       if (!alive) return;
       setOrg(o);
       setGodowns(g);
@@ -114,7 +116,7 @@ export default function Shell({ route, user, onSignOut }) {
           <label className="gd-sel"><small>GODOWN</small>
             <select value={godown} onChange={(e) => setGodown(e.target.value)} aria-label="Select godown">
               <option value="all">All godowns</option>
-              {godowns.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+              {godowns.map((g) => <option key={g.id} value={g.id}>{g.name}{g.active ? '' : ' — Inactive'}</option>)}
             </select>
             <Chevron />
           </label>
