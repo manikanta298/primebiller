@@ -6,7 +6,7 @@ import receipts from "./receipts.js";
 import stockActions from "./stockActions.js";
 import invoicing from "./invoicing.js";
 import fin from "./final.js";
-import pending from "./pending.js";
+import pending from "./pending.js";\nimport godownStock from "./godownStock.js";
 import typedImports from "./imports.js";
 import masters from "./masters.js";
 import admin from "./admin.js";
