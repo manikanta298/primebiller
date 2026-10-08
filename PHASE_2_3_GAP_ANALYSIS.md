@@ -72,7 +72,7 @@ Spec Phase 2 (ยง36) is *Opening stock*; what was delivered is the master-sync (ย
 ## 5. Test & tooling debt
 - [ ] **P0** No frontend tests for any new Sales behaviour (UI not built yet).
 - [ ] **P1** `test/pending.integration.test.js` hard-codes `org_id=1`; seed script fails if `stock_adjustments` rows exist (not in its delete list).
-- [ ] **P1** No CI workflow to run `npm test` against a MySQL service.
+- [x] ~~No CI workflow~~ (correction: `.github/workflows/ci.yml` exists and runs backend + frontend jobs on MySQL 8.4 / Node 24). Still open: CI has never run the new Sales UI because it doesn't exist yet.
 - [ ] **P2** Test files run in parallel on one database; use a schema per test file.
 
 ---
