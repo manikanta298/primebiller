@@ -16,22 +16,27 @@ const makePasswordHash = async (password) => {
   return `scrypt:16384:8:1:${salt}:${Buffer.from(derived).toString("hex")}`;
 };
 
-test("standard sign-in accepts a verified app_users account regardless of DEMO_EMAIL", { skip: !process.env.DATABASE_URL }, async (t) => {
+test("standard sign-in uses the submitted email, verifies its password and email status, then creates a DB session", { skip: !process.env.DATABASE_URL }, async (t) => {
   const { pool } = await import("../db.js");
   const { signIn } = await import("../auth.js");
 
-  const email = `auth-test-${Date.now()}@example.test`;
+  const verifiedEmail = `auth-test-${Date.now()}@example.test`;
+  const unverifiedEmail = `auth-unverified-${Date.now()}@example.test`;
   const password = "TestPassword123!";
   const passwordHash = await makePasswordHash(password);
 
   t.after(async () => {
-    await pool.query("DELETE FROM app_users WHERE email=?", [email]);
+    await pool.query("DELETE FROM app_users WHERE email IN (?,?)", [verifiedEmail, unverifiedEmail]);
     await pool.end();
   });
 
   const [created] = await pool.query(
     "INSERT INTO app_users (name,email,password_hash,email_verified,role) VALUES (?,?,?,?,?)",
-    ["Authentication Test User", email, passwordHash, 1, "USER"],
+    ["Authentication Test User", verifiedEmail, passwordHash, 1, "USER"],
+  );
+  await pool.query(
+    "INSERT INTO app_users (name,email,password_hash,email_verified,role) VALUES (?,?,?,?,?)",
+    ["Unverified Test User", unverifiedEmail, passwordHash, 0, "USER"],
   );
 
   const headers = {};
@@ -45,11 +50,15 @@ test("standard sign-in accepts a verified app_users account regardless of DEMO_E
     },
   };
 
-  const result = await signIn(req, res, { email, password, rememberMe: true });
+  const result = await signIn(req, res, {
+    email: verifiedEmail,
+    password,
+    rememberMe: true,
+  });
 
   assert.equal(result.ok, true);
   assert.equal(result.session.user.id, created.insertId);
-  assert.equal(result.session.user.email, email);
+  assert.equal(result.session.user.email, verifiedEmail);
   assert.match(headers["Set-Cookie"], /^primebiller_session=/);
 
   const [[session]] = await pool.query(
@@ -58,32 +67,13 @@ test("standard sign-in accepts a verified app_users account regardless of DEMO_E
   );
   assert.equal(session.user_id, created.insertId);
   assert.ok(new Date(session.expires_at).getTime() > Date.now());
-});
 
-test("standard sign-in rejects an unverified account", { skip: !process.env.DATABASE_URL }, async (t) => {
-  const { pool } = await import("../db.js");
-  const { signIn } = await import("../auth.js");
-
-  const email = `auth-unverified-${Date.now()}@example.test`;
-  const password = "TestPassword123!";
-  const passwordHash = await makePasswordHash(password);
-
-  t.after(async () => {
-    await pool.query("DELETE FROM app_users WHERE email=?", [email]);
-    await pool.end();
-  });
-
-  await pool.query(
-    "INSERT INTO app_users (name,email,password_hash,email_verified,role) VALUES (?,?,?,?,?)",
-    ["Unverified Test User", email, passwordHash, 0, "USER"],
-  );
-
-  const result = await signIn(
-    { secure: true, headers: { "x-forwarded-proto": "https" } },
+  const unverifiedResult = await signIn(
+    req,
     { setHeader() {} },
-    { email, password, rememberMe: true },
+    { email: unverifiedEmail, password, rememberMe: true },
   );
 
-  assert.equal(result.ok, false);
-  assert.equal(result.error, "Invalid email or password.");
+  assert.equal(unverifiedResult.ok, false);
+  assert.equal(unverifiedResult.error, "Invalid email or password.");
 });
