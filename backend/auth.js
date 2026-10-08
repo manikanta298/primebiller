@@ -11,7 +11,7 @@ const MAX_RESET_ATTEMPTS = 5;
 const normalizeEmail = (email) => String(email || "").trim().toLowerCase();
 const demoEmail = () => normalizeEmail(process.env.DEMO_EMAIL);
 
-const hashPassword = async (password) => {
+export const hashPassword = async (password) => {
   const salt = crypto.randomBytes(16).toString("hex");
   const derived = await scrypt(String(password), salt, 64, {
     N: 16384,
@@ -22,7 +22,7 @@ const hashPassword = async (password) => {
   return `scrypt:16384:8:1:${salt}:${Buffer.from(derived).toString("hex")}`;
 };
 
-const verifyPassword = async (password, stored) => {
+export const verifyPassword = async (password, stored) => {
   const [scheme, n, r, p, salt, digest] = String(stored || "").split(":");
   if (scheme !== "scrypt" || !n || !r || !p || !salt || !digest) return false;
   const derived = await scrypt(String(password), salt, 64, {
@@ -73,15 +73,14 @@ async function createOtp(email, purpose, { persistCode = false } = {}) {
   const normalizedEmail = normalizeEmail(email);
   const otp = String(crypto.randomInt(100000, 1000000));
   const otpHash = hashToken(otp);
-  const expiresAt = new Date(Date.now() + REGISTRATION_OTP_TTL_SECONDS * 1000);
 
   await pool.query(
     "UPDATE auth_otps SET used_at=NOW() WHERE email=? AND purpose=? AND used_at IS NULL",
     [normalizedEmail, purpose],
   );
   const [result] = await pool.query(
-    "INSERT INTO auth_otps (email,purpose,otp_hash,otp_code,expires_at,attempts,created_at) VALUES (?,?,?,?,?,0,NOW())",
-    [normalizedEmail, purpose, otpHash, persistCode ? otp : null, expiresAt],
+    "INSERT INTO auth_otps (email,purpose,otp_hash,otp_code,expires_at,attempts,created_at) VALUES (?,?,?,?,NOW() + INTERVAL ? SECOND,0,NOW())",
+    [normalizedEmail, purpose, otpHash, persistCode ? otp : null, REGISTRATION_OTP_TTL_SECONDS],
   );
 
   console.log(
@@ -99,12 +98,12 @@ async function verifyOtp(email, purpose, otp) {
   }
 
   const [rows] = await pool.query(
-    "SELECT id,otp_hash,attempts,expires_at FROM auth_otps WHERE email=? AND purpose=? AND used_at IS NULL ORDER BY id DESC LIMIT 1",
+    "SELECT id,otp_hash,attempts,expires_at>NOW() AS live FROM auth_otps WHERE email=? AND purpose=? AND used_at IS NULL ORDER BY id DESC LIMIT 1",
     [normalizedEmail, purpose],
   );
   const record = rows[0];
 
-  if (!record || new Date(record.expires_at).getTime() <= Date.now()) {
+  if (!record || !record.live) {
     return { ok: false, error: "Invalid or expired OTP." };
   }
 
@@ -146,10 +145,10 @@ export async function requestRegistrationOtp({ name, email, password }) {
   }
 
   const [[latest]] = await pool.query(
-    "SELECT created_at FROM auth_otps WHERE email=? AND purpose='registration' ORDER BY id DESC LIMIT 1",
+    "SELECT TIMESTAMPDIFF(SECOND, created_at, NOW()) AS age FROM auth_otps WHERE email=? AND purpose='registration' ORDER BY id DESC LIMIT 1",
     [normalizedEmail],
   );
-  if (latest && Date.now() - new Date(latest.created_at).getTime() < OTP_RESEND_COOLDOWN_SECONDS * 1000) {
+  if (latest && latest.age < OTP_RESEND_COOLDOWN_SECONDS) {
     return { ok: false, error: "Please wait 60 seconds before requesting another OTP." };
   }
 
@@ -227,12 +226,16 @@ export async function registerUser({ name, email, password, otp }) {
   }
 }
 
+// Creates the optional demo account. On later starts it leaves the account alone: overwriting its password on
+// every boot (hosts like Render restart idle services) silently undid any password chosen through the reset
+// flow. Set SYNC_DEMO_PASSWORD=true to deliberately push DUMMY_PASSWORD onto the existing account.
 export async function ensureDemoAccount() {
   const email = demoEmail();
   const password = String(process.env.DUMMY_PASSWORD || "");
 
   if (!email || !password) {
-    throw new Error("DEMO_EMAIL and DUMMY_PASSWORD must be configured before the API starts.");
+    console.log("[auth] DEMO_EMAIL / DUMMY_PASSWORD not set - skipping the demo account.");
+    return null;
   }
   if (password.length < 8) {
     throw new Error("DUMMY_PASSWORD must be at least 8 characters.");
@@ -245,11 +248,13 @@ export async function ensureDemoAccount() {
   );
 
   if (existing[0]) {
-    await pool.query(
-      "UPDATE app_users SET password_hash=?,email_verified=1,updated_at=NOW() WHERE id=?",
-      [passwordHash, existing[0].id],
-    );
-    console.log(`[auth] Dummy account synchronized: ${email} (id=${existing[0].id})`);
+    if (String(process.env.SYNC_DEMO_PASSWORD).toLowerCase() === "true") {
+      await pool.query("UPDATE app_users SET password_hash=?,email_verified=1,updated_at=NOW() WHERE id=?", [passwordHash, existing[0].id]);
+      console.log(`[auth] Dummy account password re-synchronized: ${email} (id=${existing[0].id})`);
+    } else {
+      await pool.query("UPDATE app_users SET email_verified=1 WHERE id=? AND email_verified=0", [existing[0].id]);
+      console.log(`[auth] Dummy account present, password left unchanged: ${email} (id=${existing[0].id})`);
+    }
     return existing[0].id;
   }
 
@@ -286,11 +291,11 @@ async function createSession(userId, rememberMe = true) {
   const token = crypto.randomBytes(32).toString("hex");
   const tokenHash = hashToken(token);
   const ttl = rememberMe ? SESSION_TTL_SECONDS : TEMP_SESSION_TTL_SECONDS;
-  const expiresAt = new Date(Date.now() + ttl * 1000);
   await pool.query(
-    "INSERT INTO app_sessions (token_hash,user_id,expires_at,created_at,last_seen_at) VALUES (?, ?, ?, NOW(), NOW())",
-    [tokenHash, userId, expiresAt],
+    "INSERT INTO app_sessions (token_hash,user_id,expires_at,created_at,last_seen_at) VALUES (?, ?, NOW() + INTERVAL ? SECOND, NOW(), NOW())",
+    [tokenHash, userId, ttl],
   );
+  await pool.query("DELETE FROM app_sessions WHERE expires_at<NOW() LIMIT 200").catch(() => {});   // housekeeping
   return { token, ttl };
 }
 
@@ -302,7 +307,13 @@ export async function signIn(req, res, { email, password, rememberMe = true }) {
   }
 
   const user = await findUserByEmail(normalizedEmail);
-  if (!user || !(await verifyPassword(password, user.password_hash)) || !user.email_verified) {
+  const reason = !user ? "no account with this email"
+    : !String(user.password_hash || "").startsWith("scrypt:") ? "stored password is not a scrypt hash (row was not created by the app - run npm run auth:set-password)"
+    : !(await verifyPassword(password, user.password_hash)) ? "password does not match"
+    : !user.email_verified ? "email_verified is 0"
+    : null;
+  if (reason) {
+    console.log(`[auth] Sign-in rejected for ${normalizedEmail}: ${reason}`);   // never sent to the browser
     return { ok: false, error: "Invalid email or password." };
   }
   const session = await createSession(user.id, rememberMe !== false);

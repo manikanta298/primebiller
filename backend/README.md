@@ -38,4 +38,10 @@ npm start
 
 No `DEMO_EMAIL`, `DUMMY_PASSWORD`, `SMTP_*`, Brevo, or Resend variables are required for authentication.
 
+### Demo account and passwords
+
+- If `DEMO_EMAIL` and `DUMMY_PASSWORD` are set, the demo account is **created once**. Restarts never overwrite its password, so a password set through the reset flow stays valid. To deliberately push `DUMMY_PASSWORD` onto the existing account, start once with `SYNC_DEMO_PASSWORD=true`.
+- Rows inserted by hand cannot log in unless the password is an app-made scrypt hash and `email_verified=1`. The API log says which check failed (`[auth] Sign-in rejected for ...`). To create or repair a login: `NEW_PASSWORD='...' npm run auth:set-password -- user@example.com`.
+- Session and OTP expiry are calculated by MySQL (`NOW() + INTERVAL`), so they do not depend on the API server and the database using the same timezone.
+
 After registration, the API creates the user's session automatically and the frontend routes to the dashboard.
